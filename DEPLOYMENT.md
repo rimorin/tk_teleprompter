@@ -24,9 +24,10 @@ Two services, built from this repository:
 | **web** | `apps/web/Dockerfile`    | Caddy: serves the front end, adds security headers, and proxies `/ws` and `/health` to **api**. Health: `GET /healthz`.                  |
 
 Both images build from the repository root (`docker build -f apps/server/Dockerfile .`). On every
-push to `main` and on `v*` tags, the [Images workflow](.github/workflows/images.yml) publishes
-them for `linux/amd64` and `linux/arm64` to GitHub Container Registry:
-`ghcr.io/<owner>/<repo>-api` and `ghcr.io/<owner>/<repo>-web`.
+push to `main` and on `v*` tags, [CI](.github/workflows/ci.yml) publishes them to GitHub Container
+Registry as `ghcr.io/<owner>/<repo>-api` and `ghcr.io/<owner>/<repo>-web`, tagged with the branch
+or tag name (e.g. `:main`, `:v1.2.0`) and the commit SHA. They're built for `linux/amd64`; for ARM
+hosts, build the images on the host itself.
 
 There are two ways to connect them:
 

@@ -192,7 +192,7 @@ platform such as Railway, Render or Fly.io. You can also put the front end on a 
 (Netlify, Vercel, Cloudflare Pages…) with the API deployed separately. Putting Cloudflare's proxy or Tunnel in front is supported too.
 
 There are two images: `web` (Caddy, public) and `api` (Node.js, private, holds the speech API
-key). Both are configured at runtime and published for amd64 and arm64 by CI.
+key). Both are configured at runtime and published to GitHub Container Registry by CI.
 
 ```bash
 cp apps/server/.env.example apps/server/.env    # DEEPGRAM_API_KEY, APP_ACCESS_CODE
