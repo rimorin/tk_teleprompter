@@ -1,0 +1,50 @@
+# Runs the production images on any Docker host (a VPS, a home server, your laptop):
+#   web (published)  ──private network──▶  api (not published)
+#
+#   cp apps/server/.env.example apps/server/.env   # set DEEPGRAM_API_KEY, APP_ACCESS_CODE
+#   PUBLIC_ORIGIN=https://prompter.example.com docker compose up -d --build
+#
+# Put a TLS-terminating proxy (or your platform's load balancer) in front of port 8080;
+# browsers only allow the microphone over HTTPS (or on localhost).
+#
+# Behind Cloudflare without opening any ports (Cloudflare Tunnel; see DEPLOYMENT.md):
+#   CLOUDFLARE_TUNNEL_TOKEN=... WEB_PORT=127.0.0.1:8080 \
+#   PUBLIC_ORIGIN=https://prompter.example.com docker compose --profile cloudflare up -d
+services:
+  api:
+    build: { context: ., dockerfile: apps/server/Dockerfile }
+    restart: unless-stopped
+    env_file:
+      - path: apps/server/.env
+        required: false
+    environment:
+      HOST: '::'
+      PORT: 8080
+      TRUST_PROXY: 'true'
+      ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost:8080}
+    stop_grace_period: 15s
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      API_URL: http://api:8080
+      # Behind Cloudflare, set CLIENT_IP_HEADERS=CF-Connecting-IP (and, if Cloudflare connects
+      # directly rather than through the tunnel, TRUSTED_PROXIES from deploy/cloudflare/ips.sh).
+      CLIENT_IP_HEADERS: ${CLIENT_IP_HEADERS:-X-Forwarded-For}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-private_ranges}
+    ports: ['${WEB_PORT:-8080}:8080']
+    depends_on:
+      api: { condition: service_healthy }
+
+  # Optional: connects outbound to Cloudflare and forwards your public hostname to web.
+  # In the tunnel's dashboard, route the hostname to http://web:8080.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: [cloudflare]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on: [web]

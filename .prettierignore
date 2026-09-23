@@ -1,0 +1,4 @@
+node_modules
+dist
+pnpm-lock.yaml
+voice-following-teleprompter-spec.md

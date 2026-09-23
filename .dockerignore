@@ -1,0 +1,11 @@
+# Keep build contexts small and free of secrets.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.git
+.DS_Store
+voice-following-teleprompter-spec.md

@@ -1,0 +1,202 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { App } from './App';
+
+function tokenClass(text: string) {
+  return screen.getByText(text, { selector: '[data-tid]' }).className;
+}
+
+describe('App (manual mode)', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it('pastes a script, presents it, and navigates manually', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const textarea = screen.getByRole('textbox');
+    await user.click(textarea);
+    await user.paste('Alpha beta gamma.\n\nDelta epsilon.\n\nZeta eta.');
+    expect(within(screen.getByLabelText('Script statistics')).getByText('3')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    const scroller = screen.getByTestId('scroller');
+    expect(within(scroller).getByText('Alpha')).toBeInTheDocument();
+    expect(tokenClass('Alpha')).toContain('next');
+
+    await user.click(screen.getByRole('button', { name: 'Next paragraph' }));
+    expect(tokenClass('Delta')).toContain('next');
+    expect(tokenClass('gamma.')).toContain('spoken');
+
+    await user.keyboard('{ArrowDown}');
+    expect(tokenClass('Zeta')).toContain('next');
+
+    // Tap a word to reposition backward.
+    await user.click(screen.getByText('beta'));
+    expect(tokenClass('beta')).toContain('next');
+    expect(tokenClass('Alpha')).toContain('spoken');
+    expect(tokenClass('Delta')).not.toContain('spoken');
+  });
+
+  it('resets position with a notice when the script is edited between sessions', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('textbox'));
+    await user.paste('One two.\n\nThree four.');
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await user.keyboard('{ArrowDown}');
+    await user.click(screen.getByRole('button', { name: 'Back to setup' }));
+    await user.type(screen.getByRole('textbox'), ' Five.');
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    expect(screen.getByRole('note')).toHaveTextContent(/position was reset/);
+    expect(tokenClass('One')).toContain('next');
+  });
+
+  it('blocks presenting when the script exceeds the size limit', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('textbox'));
+    await user.paste('a'.repeat(100_001));
+    expect(screen.getByRole('alert')).toHaveTextContent(/limit is 100,000/);
+    expect(screen.getByRole('button', { name: /start presenting/i })).toBeDisabled();
+  });
+
+  it('persists the script locally', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<App />);
+    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await new Promise((r) => setTimeout(r, 450));
+    unmount();
+    render(<App />);
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toMatch(/^Good morning/);
+  });
+});
+
+describe('App (presenter controls)', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it('changes display settings from the settings sheet and persists them', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const panel = screen.getByRole('dialog', { name: 'Settings' });
+    await user.click(within(panel).getByRole('radio', { name: /light/i }));
+    await user.click(within(panel).getByRole('radio', { name: /serif/i }));
+    await user.click(within(panel).getByRole('switch', { name: /mirror/i }));
+    const presenter = document.querySelector('.presenter') as HTMLElement;
+    expect(presenter.dataset.theme).toBe('light');
+    expect(presenter.dataset.face).toBe('serif');
+    expect(document.querySelector('.content')).toHaveClass('mirrored');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem('teleprompter.settings.v1')!)).toMatchObject({
+      theme: 'light',
+      typeface: 'serif',
+      mirrored: true,
+    });
+  });
+
+  it('shows keyboard shortcuts with ?', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await user.keyboard('?');
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog', { name: 'Keyboard shortcuts' })).not.toBeInTheDocument();
+  });
+});
+
+describe('App (simulated tracking)', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  function presentSample() {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /start presenting/i }));
+    // Fake the timers the simulation uses (user-event relies on real timers, so use fireEvent).
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  }
+
+  function startSimulation() {
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: /start simulation/i }));
+  }
+
+  it('simulated speech drives the highlight to the expected phrase', async () => {
+    presentSample();
+    startSimulation();
+    expect(screen.getByRole('status')).toHaveTextContent(/following \(simulated\)/i);
+
+    // 150 wpm = 400 ms/word. After ~12 s about 30 words have been spoken and finalized.
+    await act(async () => {
+      vi.advanceTimersByTime(12_000);
+    });
+    const spoken = document.querySelectorAll('.tok.spoken');
+    expect(spoken.length).toBeGreaterThan(15);
+    expect(spoken.length).toBeLessThan(35);
+    // Everything up to the last spoken token is spoken; nothing after the tentative phrase is.
+    const lastSpoken = Number((spoken[spoken.length - 1] as HTMLElement).dataset.tid);
+    expect(Number((spoken[0] as HTMLElement).dataset.tid)).toBe(0);
+    expect(spoken.length).toBe(lastSpoken + 1);
+    expect(screen.getByText('Good', { selector: '[data-tid]' }).className).toContain('spoken');
+  });
+
+  it('pausing freezes the highlight while the simulated speaker continues', async () => {
+    presentSample();
+    startSimulation();
+    await act(async () => {
+      vi.advanceTimersByTime(6_000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Pause tracking' }));
+    const frozen = document.querySelectorAll('.tok.spoken').length;
+    await act(async () => {
+      vi.advanceTimersByTime(8_000);
+    });
+    expect(document.querySelectorAll('.tok.spoken').length).toBe(frozen);
+    expect(screen.getByRole('status')).toHaveTextContent(/paused/i);
+    fireEvent.click(screen.getByRole('button', { name: 'Resume tracking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop simulation' }));
+    expect(screen.getByRole('status')).toHaveTextContent(/manual/i);
+  });
+});
+
+describe('App (access code)', () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks for the access code before starting the microphone when the server requires one', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              protocolVersion: 1,
+              asr: { provider: 'deepgram', configured: true },
+              access: { codeRequired: true },
+            }),
+          ),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    expect(await screen.findByPlaceholderText(/required for voice tracking/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await user.click(screen.getByRole('button', { name: 'Start microphone' }));
+    const dialog = await screen.findByRole('dialog', { name: /access code/i });
+    await user.type(within(dialog).getByPlaceholderText('Access code'), 'rehearse-42');
+    // Submitting saves the code for this device (then starts the mic, which jsdom can't do).
+    await user.click(within(dialog).getByRole('button', { name: 'Start microphone' }));
+    expect(JSON.parse(window.localStorage.getItem('teleprompter.accessCode.v1')!)).toBe(
+      'rehearse-42',
+    );
+  });
+});

@@ -1,0 +1,58 @@
+# Serves the built SPA and reverse-proxies the realtime API to the backend.
+# Environment (all optional):
+#   PORT             port to listen on (default 8080)
+#   API_URL          backend base URL on the private network (default http://api:8080)
+#   TRUSTED_PROXIES  proxies allowed to report the client IP, e.g. your platform's load balancer
+#                    or Cloudflare (default private_ranges; add CIDRs such as 100.0.0.0/8 if needed)
+#   CLIENT_IP_HEADERS  header(s) carrying the client IP from those proxies (default
+#                    X-Forwarded-For; use CF-Connecting-IP behind Cloudflare)
+#   CSP_CONNECT_SRC  extra CSP connect-src sources, e.g. https://api.example.com wss://api.example.com
+#                    when the front end talks to a separately hosted API
+{
+	admin off
+	persist_config off
+	# TLS is terminated by the platform or a proxy in front of this container.
+	auto_https off
+	log {
+		format json
+	}
+	servers {
+		trusted_proxies static {$TRUSTED_PROXIES:private_ranges}
+		client_ip_headers {$CLIENT_IP_HEADERS:X-Forwarded-For}
+	}
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+
+	# Liveness of this container itself, independent of the backend.
+	respond /healthz 200
+
+	# Realtime API and backend health. X-Forwarded-For is overwritten with the verified client IP
+	# so the backend's per-IP limits can't be spoofed by clients.
+	@api path /ws /health
+	handle @api {
+		reverse_proxy {$API_URL:http://api:8080} {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		root * /srv/dist
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		header / Cache-Control "no-cache"
+		header /index.html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+		Content-Security-Policy "default-src 'self'; connect-src 'self' wss://{host} {$CSP_CONNECT_SRC:}; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	}
+}

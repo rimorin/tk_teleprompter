@@ -1,0 +1,28 @@
+{
+  "name": "@teleprompter/server",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "node build.mjs",
+    "start": "node --enable-source-maps dist/index.cjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^11.3.1",
+    "@teleprompter/shared": "workspace:*",
+    "dotenv": "^18.0.3",
+    "fastify": "^5.12.5",
+    "ws": "^8.21.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  }
+}
