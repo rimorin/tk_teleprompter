@@ -23,11 +23,8 @@ Two services, built from this repository:
 | **api** | `apps/server/Dockerfile` | Fastify server: relays microphone audio to the speech provider and returns transcripts. Holds `DEEPGRAM_API_KEY`. Health: `GET /health`. |
 | **web** | `apps/web/Dockerfile`    | Caddy: serves the front end, adds security headers, and proxies `/ws` and `/health` to **api**. Health: `GET /healthz`.                  |
 
-Both images build from the repository root (`docker build -f apps/server/Dockerfile .`). On every
-push to `main` and on `v*` tags, [CI](.github/workflows/ci.yml) publishes them to GitHub Container
-Registry as `ghcr.io/<owner>/<repo>-api` and `ghcr.io/<owner>/<repo>-web`, tagged with the branch
-or tag name (e.g. `:main`, `:v1.2.0`) and the commit SHA. They're built for `linux/amd64`; for ARM
-hosts, build the images on the host itself.
+Both images build from the repository root (`docker build -f apps/server/Dockerfile .`). Most
+platforms build them for you from the Git repository; nothing needs to be pushed to a registry.
 
 There are two ways to connect them:
 
@@ -111,10 +108,9 @@ prompter.example.com {
 }
 ```
 
-To use the published images instead of building, replace each `build:` with
-`image: ghcr.io/<owner>/<repo>-api:main` (and `-web:main`).
-
 ### Kubernetes
+
+Build the two images and push them to a registry your cluster can pull from, then:
 
 - **api:** a Deployment with `replicas: 1` and a Service named `api` on port 8080. Put secrets in
   a Secret. Set `TRUST_PROXY=true`, `ALLOWED_ORIGINS=https://<your host>`, readiness probe
