@@ -41,6 +41,29 @@ describe('DeepgramProvider', () => {
     expect(received.length).toBe(count);
   });
 
+  it('gives up on a provider connection that never opens, so the client can retry', async () => {
+    // Accepts the TCP connection but never answers the WebSocket upgrade.
+    const { createServer } = await import('node:net');
+    const blackhole = createServer(() => {});
+    await new Promise<void>((r) => blackhole.listen(0, '127.0.0.1', r));
+    const provider = new DeepgramProvider({
+      apiKey: 'k',
+      url: `ws://127.0.0.1:${(blackhole.address() as AddressInfo).port}/v1/listen`,
+      model: 'nova-3',
+      connectTimeoutMs: 150,
+    });
+    const started = Date.now();
+    const error = await new Promise<string>((resolve) =>
+      provider.connect(
+        { encoding: 'linear16', sampleRate: 16000, channels: 1, language: 'en' },
+        { onOpen: () => {}, onTranscript: () => {}, onError: resolve, onClose: () => {} },
+      ),
+    );
+    expect(error).toBe('asr_unavailable');
+    expect(Date.now() - started).toBeLessThan(1000);
+    blackhole.close();
+  });
+
   it('builds the listen URL with the configured model and audio format', () => {
     const url = new URL(
       new DeepgramProvider({

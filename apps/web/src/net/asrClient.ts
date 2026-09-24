@@ -10,14 +10,31 @@ import {
   type TranscriptEvent,
 } from '@teleprompter/shared';
 
-/** PCM: drop audio when this much is queued in the socket, ~2 s of 16 kHz PCM16. */
-const MAX_BUFFERED_BYTES = 64_000;
-/**
- * Opus can't be dropped without corrupting the stream, so a backlog of ~2 s ends the session
- * instead. While connecting, up to ~16 s is held.
+/*
+ * Link health: freshness over completeness. Audio that reaches the recognizer late keeps the
+ * highlight behind for several times as long (Deepgram catches up only ~1.25x faster than real
+ * time), and a stalled TCP connection releases its whole backlog at once when the signal returns.
+ * So a stalled or slow link is replaced by a fresh one rather than waited out; the matcher
+ * picks up again from what is said next.
  */
-const MAX_BUFFERED_OPUS_BYTES = (OPUS_BITS_PER_SECOND / 8) * 2;
-const MAX_PENDING_OPUS_BYTES = 64_000;
+
+/** Upload older than this (oldest unacknowledged chunk), or server silence this long, is a stall. */
+export const STALL_MS = 1_200;
+/** Audio held while connecting is sent only if the oldest of it is at most this old. */
+export const FRESH_START_MS = 1_500;
+/**
+ * The socket must open within this time. In a dead zone a new connection can hang for many
+ * seconds while the phone retries it; a fresh attempt gets through as soon as the signal is back.
+ */
+export const OPEN_TIMEOUT_MS = 2_000;
+/**
+ * A connection must be ready (the recognizer listening) within this time, or it is retried. A
+ * hung attempt is best retried quickly, but the recognizer's own connection is sometimes slow
+ * yet working, so the caller lengthens this after each attempt that ran out of time.
+ */
+export const READY_TIMEOUT_MS = 5_000;
+/** How often link health is checked. */
+const WATCH_MS = 200;
 const PCM_16K: AudioFormat = { encoding: 'linear16', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 };
 const STOP_TIMEOUT_MS = 3_000;
 /** Recent interim results used for the recognition-delay median. */
@@ -31,16 +48,32 @@ export type AsrMetrics = {
    * until a result with word timings arrives.
    */
   delayMs: number | null;
-  /** Seconds of audio waiting to leave this device (socket queue plus audio held while connecting). */
+  /** How long the oldest audio not yet received by the server has been waiting. */
   backlogMs: number;
 };
+
+export type AsrClientError =
+  ErrorCode | 'connection_failed' | 'connection_timeout' | 'connection_stalled';
 
 export type AsrClientHandlers = {
   onStatus: (status: SessionStatus) => void;
   onTranscript: (event: TranscriptEvent) => void;
-  onError: (code: ErrorCode | 'connection_failed' | 'network_slow', message: string) => void;
+  onError: (code: AsrClientError, message: string) => void;
   /** Socket closed. `intentional` is true after stop()/close(). */
   onClose: (intentional: boolean) => void;
+  /**
+   * The audio held while connecting became too old to be useful and was dropped: restart the
+   * capture so the stream starts fresh (for Opus, with a new container header).
+   */
+  onStaleStart?: () => void;
+};
+
+type ClientOptions = {
+  accessCode?: string;
+  audio?: AudioFormat;
+  /** Id of the session this one replaces after a lost connection. */
+  replaces?: string;
+  readyTimeoutMs?: number;
 };
 
 /** WebSocket client for one transcription session (see packages/shared/src/protocol.ts). */
@@ -48,28 +81,42 @@ export class AsrClient {
   private ws: WebSocket | null = null;
   private intentional = false;
   private closed = false;
-  private readonly accessCode: string | undefined;
-  private readonly maxBufferedBytes: number;
+  private readonly options: ClientOptions;
   private readonly audio: AudioFormat;
-  /** Compressed streams must arrive whole: never drop a chunk. */
-  private readonly lossless: boolean;
-  /** Audio captured while the socket is still connecting, sent right after session.start. */
-  private pending: ArrayBuffer[] = [];
-  private pendingBytes = 0;
-  /** When the first audio of this session was captured (performance.now), for delay timing. */
+  /** Server-assigned id, known once the server reports status. */
+  private id: string | null = null;
+  /** True once the recognizer is listening; audio before that is held. */
+  private live = false;
+  private held: Array<{ data: ArrayBuffer; at: number }> = [];
+  /** Send times of chunks the server hasn't acknowledged yet, oldest first. */
+  private unacked: number[] = [];
+  private acked = 0;
+  /** The server sends acks: link-health checks are on (older servers don't). */
+  private acksSeen = false;
+  private lastHeardAt = 0;
+  private openTimer: ReturnType<typeof setTimeout> | null = null;
+  private readyTimer: ReturnType<typeof setTimeout> | null = null;
+  private watchTimer: ReturnType<typeof setInterval> | null = null;
+  /** When this session's audio stream starts (performance.now), for delay timing. */
   private audioStartedAt: number | null = null;
   private delays: number[] = [];
 
   constructor(
     private readonly url: string,
     private readonly handlers: AsrClientHandlers,
-    options: { accessCode?: string; audio?: AudioFormat; maxBufferedBytes?: number } = {},
+    options: ClientOptions = {},
   ) {
-    this.accessCode = options.accessCode;
+    this.options = options;
     this.audio = options.audio ?? PCM_16K;
-    this.lossless = this.audio.encoding !== 'linear16';
-    this.maxBufferedBytes =
-      options.maxBufferedBytes ?? (this.lossless ? MAX_BUFFERED_OPUS_BYTES : MAX_BUFFERED_BYTES);
+  }
+
+  get sessionId(): string | null {
+    return this.id;
+  }
+
+  /** The recognizer is listening on this connection. */
+  get isLive(): boolean {
+    return this.live;
   }
 
   connect(): void {
@@ -77,23 +124,32 @@ export class AsrClient {
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     let opened = false;
+    this.openTimer = setTimeout(
+      () => this.fail('connection_failed', 'Could not reach the server.'),
+      OPEN_TIMEOUT_MS,
+    );
+    this.readyTimer = setTimeout(
+      () => this.fail('connection_timeout', 'The connection took too long.'),
+      this.options.readyTimeoutMs ?? READY_TIMEOUT_MS,
+    );
     ws.onopen = () => {
       opened = true;
+      if (this.openTimer) clearTimeout(this.openTimer);
+      this.openTimer = null;
       ws.send(
         JSON.stringify({
           type: 'session.start',
           v: PROTOCOL_VERSION,
           language: 'en',
           audio: this.audio,
-          ...(this.accessCode ? { accessCode: this.accessCode } : {}),
+          ...(this.options.accessCode ? { accessCode: this.options.accessCode } : {}),
+          ...(this.options.replaces ? { replaces: this.options.replaces } : {}),
         }),
       );
-      for (const pcm of this.pending) ws.send(pcm);
-      this.pending = [];
-      this.pendingBytes = 0;
     };
     ws.onmessage = (e) => {
       if (typeof e.data !== 'string') return;
+      this.lastHeardAt = performance.now();
       let msg: ServerMessage;
       try {
         msg = ServerMessage.parse(JSON.parse(e.data));
@@ -102,7 +158,12 @@ export class AsrClient {
       }
       switch (msg.type) {
         case 'session.status':
+          this.id = msg.sessionId ?? this.id;
+          if (msg.status === 'listening') this.goLive();
           this.handlers.onStatus(msg.status);
+          break;
+        case 'session.ack':
+          this.acknowledge(msg.chunks);
           break;
         case 'session.error':
           this.handlers.onError(msg.code, msg.message);
@@ -125,12 +186,12 @@ export class AsrClient {
     };
     ws.onerror = () => {
       if (!opened && !this.intentional) {
-        this.handlers.onError('connection_failed', 'Could not reach the server.');
+        this.fail('connection_failed', 'Could not reach the server.');
       }
     };
     ws.onclose = () => {
-      this.pending = [];
-      this.pendingBytes = 0;
+      this.stopTimers();
+      this.held = [];
       if (this.closed) return;
       this.closed = true;
       this.handlers.onClose(this.intentional);
@@ -138,51 +199,81 @@ export class AsrClient {
   }
 
   /**
-   * Send one audio chunk. While connecting, chunks are held so the first words aren't lost (PCM
-   * drops the oldest beyond the limit). Returns false if dropped: socket gone or network backed
-   * up. A backed-up Opus stream can't drop audio, so it ends the session instead.
+   * Queue one audio chunk. Before the recognizer is listening, chunks are held (see goLive);
+   * after that they are sent at once. Returns false once the session is closing.
    */
   sendAudio(chunk: ArrayBuffer): boolean {
     const ws = this.ws;
-    // The session's audio clock starts with its first chunk, which began one frame earlier.
-    this.audioStartedAt ??= performance.now() - AUDIO_FRAME_MS;
-    if (ws && ws.readyState === WebSocket.CONNECTING && !this.intentional) {
-      this.pending.push(chunk);
-      this.pendingBytes += chunk.byteLength;
-      if (this.lossless) {
-        if (this.pendingBytes > MAX_PENDING_OPUS_BYTES) this.failSlow();
-        return !this.intentional;
-      }
-      while (this.pendingBytes > this.maxBufferedBytes && this.pending.length > 1) {
-        this.pendingBytes -= this.pending.shift()!.byteLength;
-      }
+    if (!ws || this.intentional || ws.readyState > WebSocket.OPEN) return false;
+    const now = performance.now();
+    if (!this.live) {
+      this.held.push({ data: chunk, at: now });
       return true;
     }
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-    if (ws.bufferedAmount > this.maxBufferedBytes) {
-      if (this.lossless) this.failSlow();
-      return false;
-    }
+    // The session's audio stream starts with its first chunk, which began one frame earlier.
+    this.audioStartedAt ??= now - AUDIO_FRAME_MS;
     ws.send(chunk);
+    this.unacked.push(now);
     return true;
   }
 
-  private failSlow() {
-    this.handlers.onError(
-      'network_slow',
-      'The network is too slow for voice following right now. The buttons still work.',
-    );
+  /** The recognizer is ready: send the held audio if it is still fresh, then watch the link. */
+  private goLive() {
+    if (this.live) return;
+    this.live = true;
+    if (this.readyTimer) clearTimeout(this.readyTimer);
+    this.readyTimer = null;
+    const held = this.held;
+    this.held = [];
+    const now = performance.now();
+    if (held.length && now - held[0]!.at > FRESH_START_MS) {
+      // Too old to help: start the stream over from what is said next.
+      this.handlers.onStaleStart?.();
+    } else if (held.length) {
+      this.audioStartedAt = held[0]!.at - AUDIO_FRAME_MS;
+      for (const h of held) {
+        this.ws!.send(h.data);
+        this.unacked.push(now);
+      }
+    }
+    this.watchTimer = setInterval(() => this.checkLink(), WATCH_MS);
+  }
+
+  private acknowledge(chunks: number) {
+    this.acksSeen = true;
+    const newly = Math.min(this.unacked.length, Math.max(0, chunks - this.acked));
+    this.unacked.splice(0, newly);
+    this.acked += newly;
+  }
+
+  private uploadLag(now: number): number {
+    return this.unacked.length ? now - this.unacked[0]! : 0;
+  }
+
+  private checkLink() {
+    if (!this.acksSeen) return; // An older server without acks: nothing to judge by.
+    const now = performance.now();
+    if (now - this.lastHeardAt > STALL_MS || this.uploadLag(now) > STALL_MS) {
+      this.fail('connection_stalled', 'The connection stalled.');
+    }
+  }
+
+  private fail(code: AsrClientError, message: string) {
+    if (this.intentional || this.closed) return;
+    this.handlers.onError(code, message);
     this.close();
   }
 
   metrics(): AsrMetrics {
     const sorted = [...this.delays].sort((a, b) => a - b);
-    const queued = (this.ws?.bufferedAmount ?? 0) + this.pendingBytes;
+    const now = performance.now();
     const bytesPerSecond =
       this.audio.encoding === 'linear16' ? this.audio.sampleRate * 2 : OPUS_BITS_PER_SECOND / 8;
     return {
       delayMs: sorted.length ? sorted[Math.floor(sorted.length / 2)]! : null,
-      backlogMs: (queued / bytesPerSecond) * 1000,
+      backlogMs: this.acksSeen
+        ? this.uploadLag(now)
+        : ((this.ws?.bufferedAmount ?? 0) / bytesPerSecond) * 1000,
     };
   }
 
@@ -193,9 +284,19 @@ export class AsrClient {
     if (this.delays.length > DELAY_SAMPLES) this.delays.shift();
   }
 
+  private stopTimers() {
+    if (this.openTimer) clearTimeout(this.openTimer);
+    if (this.readyTimer) clearTimeout(this.readyTimer);
+    this.openTimer = null;
+    if (this.watchTimer) clearInterval(this.watchTimer);
+    this.readyTimer = null;
+    this.watchTimer = null;
+  }
+
   /** Ask the server to finalize and end the session; resolves once the socket closes. */
   stop(): Promise<void> {
     this.intentional = true;
+    this.stopTimers();
     const ws = this.ws;
     if (!ws || ws.readyState >= WebSocket.CLOSING) return Promise.resolve();
     return new Promise((resolve) => {
@@ -214,6 +315,7 @@ export class AsrClient {
 
   close(): void {
     this.intentional = true;
+    this.stopTimers();
     this.ws?.close();
   }
 }

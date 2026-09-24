@@ -458,6 +458,62 @@ describe('tracker: skips, repeats and jumps', () => {
   });
 });
 
+describe('tracker: after a lost connection', () => {
+  it('picks the speaker up quickly on a new session, from interims, without running ahead', () => {
+    const opts: SimOptions = {
+      substitutionRate: 0.08,
+      fillerRate: 0.05,
+      interimRevisionRate: 0.3,
+      interimEveryWords: 3,
+      segmentWords: [8, 20],
+      finalLatencyMs: 600,
+    };
+    // Up to ~45 words: an outage of about 15 s, plus detecting it and reconnecting.
+    for (const gap of [8, 15, 25, 45]) {
+      for (const seed of [1, 2, 3]) {
+        const start = para(1).firstTokenId;
+        const cut = start + 20;
+        const resume = cut + gap; // words spoken while offline are never heard
+        const before = simulate({
+          ...opts,
+          seed,
+          sessionId: 'A',
+          startTokenId: start,
+          actions: [{ type: 'stop', atTokenId: cut }],
+        });
+        const after = simulate({
+          ...opts,
+          seed,
+          sessionId: 'B',
+          startTokenId: resume,
+          actions: [{ type: 'stop', atTokenId: resume + 25 }],
+        });
+        let s = run(before, reposition(startTracking(initialTrackingState()), start)).state;
+        let backAfter: number | null = null;
+        for (const sim of after) {
+          s = update(ctx, s, sim.event);
+          const truth = sim.truthTokenId ?? resume;
+          const focus = s.tentativeTokenId ?? s.confirmedTokenId ?? -1;
+          const label = `gap ${gap} seed ${seed}`;
+          expect(focus, label).toBeLessThanOrEqual(truth + 1); // never ahead of the speaker
+          expect(s.confirmedTokenId ?? -1, label).toBeLessThanOrEqual(truth + 1);
+          if (backAfter === null && focus >= resume) backAfter = truth - resume + 1;
+        }
+        expect(backAfter, `gap ${gap} seed ${seed}`).not.toBeNull();
+        expect(backAfter!, `gap ${gap} seed ${seed}`).toBeLessThanOrEqual(gap > 30 ? 15 : 9);
+      }
+    }
+  });
+
+  it('does not let the first session skip ahead on interims', () => {
+    let s = startTracking(initialTrackingState());
+    // Words from further into the first paragraph, heard as an interim on the very first session.
+    s = update(ctx, s, ev('interim', 'rebuilding the onboarding flow for new customers', 0));
+    expect(s.resyncing).toBe(false);
+    expect(s.tentativeTokenId).toBeNull();
+  });
+});
+
 describe('tracker: manual reposition', () => {
   it('repositions immediately and ignores speech heard before the tap', () => {
     // Read the first paragraph, then tap back to the start and read it again.

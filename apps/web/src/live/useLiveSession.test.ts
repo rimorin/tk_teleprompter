@@ -1,6 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RECONNECT_DELAYS_MS, useLiveSession } from './useLiveSession';
+import {
+  READY_TIMEOUTS_MS,
+  RECONNECT_DELAYS_MS,
+  RETRY_EVERY_MS,
+  useLiveSession,
+} from './useLiveSession';
 
 const mic = { stop: vi.fn(async () => {}), restart: vi.fn() };
 
@@ -45,9 +50,12 @@ class FakeWebSocket {
   }
   addEventListener() {}
   // Test helpers
-  listen() {
+  open() {
     this.readyState = FakeWebSocket.OPEN;
     this.onopen?.();
+  }
+  listen() {
+    this.open();
     this.receive({ type: 'session.status', status: 'listening', sessionId: 's' });
   }
   receive(msg: unknown) {
@@ -116,19 +124,79 @@ describe('useLiveSession reconnect', () => {
     expect(hook.result.current.error).toBeNull();
   });
 
-  it('retries a failed reconnect with growing waits, then gives up', async () => {
+  it('keeps retrying while the microphone is on: quickly at first, then steadily', async () => {
     const { handlers, hook } = setup();
     await startListening(hook);
     act(() => lastSocket().drop());
-    for (const delay of RECONNECT_DELAYS_MS) {
-      await act(async () => vi.advanceTimersByTime(delay));
-      act(() => lastSocket().drop()); // the server is still unreachable
+    const waits = [...RECONNECT_DELAYS_MS, RETRY_EVERY_MS, RETRY_EVERY_MS, RETRY_EVERY_MS];
+    for (const wait of waits) {
+      await act(async () => vi.advanceTimersByTime(wait));
+      act(() => lastSocket().drop()); // the network is still down
     }
-    expect(sockets()).toHaveLength(1 + RECONNECT_DELAYS_MS.length);
-    expect(hook.result.current.phase).toBe('off');
-    expect(hook.result.current.error).toMatch(/lost connection/i);
-    expect(handlers.onInterrupted).toHaveBeenCalledTimes(1);
-    expect(mic.stop).toHaveBeenCalled();
+    expect(sockets()).toHaveLength(1 + waits.length);
+    expect(hook.result.current.phase).toBe('reconnecting');
+    expect(handlers.onInterrupted).not.toHaveBeenCalled();
+    expect(mic.stop).not.toHaveBeenCalled();
+    // When the network is back, the next attempt succeeds.
+    await act(async () => vi.advanceTimersByTime(RETRY_EVERY_MS));
+    act(() => lastSocket().listen());
+    expect(hook.result.current.phase).toBe('listening');
+  });
+
+  it('replaces a connection attempt begun while offline as soon as the phone is back online', async () => {
+    const { hook } = setup();
+    await startListening(hook);
+    act(() => void window.dispatchEvent(new Event('offline')));
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!)); // an attempt starts…
+    const stuck = lastSocket(); // …and hangs, as it would in a dead zone
+    act(() => void window.dispatchEvent(new Event('online')));
+    expect(stuck.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(lastSocket()).not.toBe(stuck);
+    act(() => lastSocket().listen());
+    expect(hook.result.current.phase).toBe('listening');
+  });
+
+  it('gives a slow recognizer longer to start after an attempt ran out of time', async () => {
+    const { hook } = setup();
+    await startListening(hook);
+    act(() => lastSocket().drop());
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
+    act(() => lastSocket().open()); // opens, but the recognizer is slow to start
+    await act(async () => vi.advanceTimersByTime(READY_TIMEOUTS_MS[0]!));
+    expect(lastSocket().readyState).toBe(FakeWebSocket.CLOSED); // ran out of time: retried
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[1]!));
+    const slow = lastSocket();
+    act(() => slow.open());
+    await act(async () => vi.advanceTimersByTime(READY_TIMEOUTS_MS[0]! + 1_000));
+    expect(slow.readyState).toBe(FakeWebSocket.OPEN); // this time it is given longer…
+    act(() => slow.receive({ type: 'session.status', status: 'listening', sessionId: 's2' }));
+    expect(hook.result.current.phase).toBe('listening'); // …and gets there
+  });
+
+  it('tells the server which session a reconnect replaces', async () => {
+    const { hook } = setup();
+    await startListening(hook);
+    act(() => lastSocket().drop());
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
+    act(() => lastSocket().open());
+    expect(JSON.parse(lastSocket().sent[0] as string).replaces).toBe('s');
+  });
+
+  it('acts on the phone going offline and online at once', async () => {
+    const { hook } = setup();
+    await startListening(hook);
+    act(() => void window.dispatchEvent(new Event('offline')));
+    expect(hook.result.current.phase).toBe('reconnecting');
+    expect(sockets()[0]!.readyState).toBe(FakeWebSocket.CLOSED);
+    // The first retry fails while offline; the next one waits…
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
+    act(() => lastSocket().drop());
+    const before = sockets().length;
+    // …until the phone reports the network is back, which retries immediately.
+    act(() => void window.dispatchEvent(new Event('online')));
+    expect(sockets()).toHaveLength(before + 1);
+    act(() => lastSocket().listen());
+    expect(hook.result.current.phase).toBe('listening');
   });
 
   it('starts counting again once listening, so later drops get the full set of retries', async () => {
@@ -177,7 +245,7 @@ describe('useLiveSession reconnect', () => {
     expect(mic.stop).toHaveBeenCalled();
   });
 
-  it('a connection that fails before the microphone is up ends the start', async () => {
+  it('a connection that fails before the microphone is up is retried, and the start succeeds', async () => {
     const { handlers, hook } = setup();
     let finishMic!: () => void;
     const { startMicCapture } = await import('../audio/micCapture');
@@ -190,9 +258,11 @@ describe('useLiveSession reconnect', () => {
     });
     act(() => lastSocket().drop());
     await act(async () => finishMic());
-    expect(await result!).toBe('failed');
-    expect(handlers.onInterrupted).toHaveBeenCalledTimes(1);
-    expect(mic.stop).toHaveBeenCalled();
-    expect(sockets()).toHaveLength(1);
+    expect(await result!).toBe('started');
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
+    act(() => lastSocket().listen());
+    expect(hook.result.current.phase).toBe('listening');
+    expect(handlers.onInterrupted).not.toHaveBeenCalled();
+    expect(mic.stop).not.toHaveBeenCalled();
   });
 });

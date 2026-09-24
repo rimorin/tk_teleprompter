@@ -14,6 +14,11 @@ export type MatcherConfig = {
   localBackSlack: number;
   /** Tokens after the anchor searched for ordinary progress, including small skips. */
   localForward: number;
+  /**
+   * After a lost connection (a new provider session), the speaker may be further ahead: search
+   * this far instead, until speech matches again. Skip-grade evidence is still required.
+   */
+  resyncForward: number;
   /** Minimum length-normalized alignment score for a local confirmed move. */
   localThreshold: number;
   /** Minimum score for a tentative (interim) move. */
@@ -69,6 +74,7 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
   minTentativeWords: 2,
   localBackSlack: 12,
   localForward: 40,
+  resyncForward: 80,
   localThreshold: 0.6,
   tentativeThreshold: 0.6,
   distanceFreeSlack: 4,

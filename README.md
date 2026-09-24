@@ -379,9 +379,11 @@ Server settings (API key, access code, limits, allowed origins) are explained in
   and a tap always puts you back on track.
 - **On iPhone and iPad, switching apps or locking the screen stops the microphone.** Start it
   again when you come back. (The app keeps the screen on while you present to help with this.)
-- **When the network drops,** it keeps the microphone on and reconnects by itself for about 40
-  seconds. Words you say while it is offline are missed, so the script may need a moment to catch
-  up. If it can't reconnect, it stops and tells you. Manual control keeps working.
+- **When the network drops or stalls,** it notices within about a second, keeps the microphone
+  on, and reconnects by itself for as long as the microphone is on. Blips under a second are
+  ridden out. Words you say while it is offline are missed on purpose: it follows what you say
+  next instead of replaying stale audio, and usually finds you again within a few words. Manual
+  control keeps working throughout.
 - **Testing so far:** automated tests, emulated phones and tablets (WebKit and Chromium), and live
   use on a laptop. More testing on real devices is under way.
 - PDF import is not supported yet. Use `.txt` or `.docx`.

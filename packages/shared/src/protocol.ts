@@ -12,6 +12,13 @@ export const OPUS_BITS_PER_SECOND = 32_000;
 export const MAX_AUDIO_FRAME_BYTES = AUDIO_SAMPLE_RATE * 2;
 
 /**
+ * Link health. While a session is active the server acknowledges received audio chunks
+ * (session.ack) at least this often, which also serves as its heartbeat. The client uses the
+ * acks to know exactly how stale its upload is, and treats silence as a stalled link.
+ */
+export const ACK_INTERVAL_MS = 250;
+
+/**
  * Audio the client streams: raw PCM, or Opus in a container (the browser's MediaRecorder output).
  * Containerized chunks are one continuous stream and must never be dropped or reordered.
  */
@@ -34,6 +41,8 @@ const SessionStartMessage = z.object({
   audio: AudioFormat,
   /** Required when the server sets APP_ACCESS_CODE. */
   accessCode: z.string().max(256).optional(),
+  /** Session this one replaces after a lost connection; the server ends it at once. */
+  replaces: z.string().max(64).optional(),
 });
 
 const SessionStopMessage = z.object({ type: z.literal('session.stop') });
@@ -96,6 +105,8 @@ export const ServerMessage = z.discriminatedUnion('type', [
   z.object({ type: z.literal('transcript.interim'), ...TranscriptFields }),
   z.object({ type: z.literal('transcript.final'), ...TranscriptFields }),
   z.object({ type: z.literal('session.error'), code: ErrorCode, message: z.string() }),
+  /** Audio chunks (binary frames) received so far in this session; also the heartbeat. */
+  z.object({ type: z.literal('session.ack'), chunks: z.number().int().min(0) }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
 

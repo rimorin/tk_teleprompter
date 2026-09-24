@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import type { WebSocket, RawData } from 'ws';
 import {
+  ACK_INTERVAL_MS,
   ClientMessage,
   ERROR_MESSAGES,
   MAX_AUDIO_FRAME_BYTES,
@@ -18,6 +19,12 @@ import type { AsrProvider, AsrStream } from './providers/AsrProvider';
 const MAX_CONTROL_BYTES = 4_096;
 /** A session must send session.start within this time. */
 const START_TIMEOUT_MS = 10_000;
+/**
+ * How often the server checks that the client is still there (WebSocket ping). A client that
+ * misses a whole interval is gone (e.g. a phone that lost signal without closing) and its
+ * session, including the provider stream, is ended.
+ */
+const PING_INTERVAL_MS = 5_000;
 
 type SessionRouteOptions = {
   provider: AsrProvider;
@@ -25,12 +32,14 @@ type SessionRouteOptions = {
   access: AccessControl;
   /** Open sessions, so a shutdown can finalize them. */
   sessions: Set<Session>;
+  pingIntervalMs?: number;
 };
 
 /**
  * One WebSocket = one transcription session. Protocol:
  *   client: session.start → binary audio frames … → session.stop
- *   server: session.status / transcript.interim / transcript.final / session.error
+ *   server: session.status / transcript.interim / transcript.final / session.error, plus
+ *           session.ack (audio chunks received) every ACK_INTERVAL_MS while active
  * Audio and transcript content are never logged.
  */
 export function registerSessionRoute(app: FastifyInstance, opts: SessionRouteOptions) {
@@ -48,16 +57,25 @@ export function registerSessionRoute(app: FastifyInstance, opts: SessionRouteOpt
       },
     },
     (socket, request) => {
-      const session = new Session(socket, opts.provider, opts.access, request.ip, request.log, () =>
-        opts.sessions.delete(session),
-      );
+      const session = new Session(socket, opts.provider, opts.access, request.ip, request.log, {
+        onClosed: () => opts.sessions.delete(session),
+        findSession: (id) => [...opts.sessions].find((s) => s.id === id),
+        pingIntervalMs: opts.pingIntervalMs ?? PING_INTERVAL_MS,
+      });
       opts.sessions.add(session);
     },
   );
 }
 
+type SessionOptions = {
+  onClosed: () => void;
+  /** An open session by id, for session.start's `replaces`. */
+  findSession: (id: string) => Session | undefined;
+  pingIntervalMs: number;
+};
+
 export class Session {
-  private readonly id = randomUUID();
+  readonly id = randomUUID();
   private stream: AsrStream | null = null;
   private state: 'awaiting_start' | 'active' | 'stopping' | 'closed' = 'awaiting_start';
   private sequence = 0;
@@ -66,6 +84,11 @@ export class Session {
   private pcm = true;
   private readonly startTimer: NodeJS.Timeout;
   private lifetimeTimer: NodeJS.Timeout | null = null;
+  private ackTimer: NodeJS.Timeout | null = null;
+  private readonly pingTimer: NodeJS.Timeout;
+  /** Audio chunks received, acknowledged to the client so it knows how stale its upload is. */
+  private chunks = 0;
+  private alive = true;
   private readonly log: FastifyBaseLogger;
 
   constructor(
@@ -74,13 +97,20 @@ export class Session {
     private readonly access: AccessControl,
     private readonly ip: string,
     parentLog: FastifyBaseLogger,
-    private readonly onClosed: () => void,
+    private readonly opts: SessionOptions,
   ) {
     this.log = parentLog.child({ sessionId: this.id });
     this.log.info('session opened');
     this.startTimer = setTimeout(() => {
       if (this.state === 'awaiting_start') this.fail('bad_message');
     }, START_TIMEOUT_MS);
+    // Browsers answer pings automatically; no answer within an interval means the client is gone.
+    this.pingTimer = setInterval(() => {
+      if (!this.alive) return this.drop('client unresponsive');
+      this.alive = false;
+      socket.ping();
+    }, opts.pingIntervalMs);
+    socket.on('pong', () => (this.alive = true));
     socket.on('message', (data, isBinary) => this.onMessage(data, isBinary));
     socket.on('close', () => this.cleanup('client closed'));
     socket.on('error', () => this.cleanup('client socket error'));
@@ -91,7 +121,10 @@ export class Session {
     if (isBinary) {
       if (buf.length > MAX_AUDIO_FRAME_BYTES || (this.pcm && buf.length % 2 !== 0))
         return this.fail('bad_message');
-      if (this.state === 'active') this.stream?.sendAudio(buf);
+      if (this.state === 'active') {
+        this.chunks++;
+        this.stream?.sendAudio(buf);
+      }
       return;
     }
     if (buf.length > MAX_CONTROL_BYTES) return this.fail('bad_message');
@@ -109,6 +142,11 @@ export class Session {
       clearTimeout(this.startTimer);
       if (msg.v !== PROTOCOL_VERSION) return this.fail('unsupported_version');
       if (!this.provider.configured) return this.fail('asr_not_configured');
+      // The client lost its old connection: end that session now (and free its slot) instead of
+      // waiting for the ping check to notice it.
+      if (msg.replaces && msg.replaces !== this.id) {
+        this.opts.findSession(msg.replaces)?.drop('replaced by a new connection');
+      }
       const denied = this.access.admit(this.ip, msg.accessCode);
       if (denied) return this.fail(denied);
       this.admitted = true;
@@ -120,10 +158,18 @@ export class Session {
       );
       this.state = 'active';
       this.status('connecting');
+      this.ackTimer = setInterval(
+        () => this.send({ type: 'session.ack', chunks: this.chunks }),
+        ACK_INTERVAL_MS,
+      );
+      const connectingSince = Date.now();
       this.stream = this.provider.connect(
         { ...msg.audio, language: msg.language },
         {
-          onOpen: () => this.status('listening'),
+          onOpen: () => {
+            this.log.info({ ms: Date.now() - connectingSince }, 'provider connected');
+            this.status('listening');
+          },
           onTranscript: (t) =>
             this.send({
               type: t.kind === 'final' ? 'transcript.final' : 'transcript.interim',
@@ -185,7 +231,12 @@ export class Session {
 
   /** Close immediately (shutdown grace period exhausted). */
   terminate(): void {
-    this.cleanup('terminated');
+    this.drop('terminated');
+  }
+
+  /** End at once without a goodbye: the client is gone or has already moved on. */
+  private drop(reason: string) {
+    this.cleanup(reason);
     this.socket.terminate();
   }
 
@@ -214,11 +265,13 @@ export class Session {
     if (this.state === 'closed') return;
     this.state = 'closed';
     clearTimeout(this.startTimer);
+    clearInterval(this.pingTimer);
     if (this.lifetimeTimer) clearTimeout(this.lifetimeTimer);
+    if (this.ackTimer) clearInterval(this.ackTimer);
     this.stream?.close();
     this.stream = null;
     if (this.admitted) this.access.release(this.ip);
-    this.onClosed();
+    this.opts.onClosed();
     this.log.info({ reason }, 'session closed');
   }
 }

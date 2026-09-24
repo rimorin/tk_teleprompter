@@ -8,6 +8,7 @@ type DeepgramOptions = {
   url: string;
   model: string;
   keepAliveMs?: number;
+  connectTimeoutMs?: number;
 };
 
 /** Deepgram recommends KeepAlive every 3–5 s when no audio is being sent; it closes after ~10 s. */
@@ -23,6 +24,12 @@ const MAX_PENDING_SECONDS = 2;
 const MAX_PENDING_CONTAINER_BYTES = 64_000;
 /** How long to wait for Deepgram to close after CloseStream before forcing it. */
 const FINISH_TIMEOUT_MS = 3_000;
+/**
+ * A connection that isn't open by now is treated as failed, instead of waiting for the operating
+ * system to give up (which can take 20 s or more). Longer than the client's first start-up
+ * limits, so a slow but working connection isn't cut off here first.
+ */
+const CONNECT_TIMEOUT_MS = 10_000;
 
 export class DeepgramProvider implements AsrProvider {
   readonly name = 'deepgram';
@@ -67,6 +74,7 @@ class DeepgramStream implements AsrStream {
   private lastAudioAt = Date.now();
   private keepAlive: NodeJS.Timeout | null = null;
   private finishTimer: NodeJS.Timeout | null = null;
+  private connectTimer: NodeJS.Timeout | null = null;
   private closedIntentionally = false;
   private done = false;
   private readonly maxPendingBytes: number;
@@ -84,8 +92,13 @@ class DeepgramStream implements AsrStream {
         ? format.sampleRate * 2 * MAX_PENDING_SECONDS // 16-bit mono
         : MAX_PENDING_CONTAINER_BYTES;
     this.ws = new WebSocket(url, { headers: { Authorization: `Token ${opts.apiKey ?? ''}` } });
+    this.connectTimer = setTimeout(
+      () => this.fail('asr_unavailable'),
+      opts.connectTimeoutMs ?? CONNECT_TIMEOUT_MS,
+    );
 
     this.ws.on('open', () => {
+      if (this.connectTimer) clearTimeout(this.connectTimer);
       for (const chunk of this.pending) this.ws.send(chunk);
       this.pending = [];
       this.pendingBytes = 0;
@@ -192,6 +205,7 @@ class DeepgramStream implements AsrStream {
     this.done = true;
     if (this.keepAlive) clearInterval(this.keepAlive);
     if (this.finishTimer) clearTimeout(this.finishTimer);
+    if (this.connectTimer) clearTimeout(this.connectTimer);
     this.pending = [];
     this.cb.onClose(this.closedIntentionally);
   }

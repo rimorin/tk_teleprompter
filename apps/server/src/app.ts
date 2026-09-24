@@ -8,9 +8,14 @@ import { isAllowedOrigin } from './origin';
 import { DeepgramProvider } from './providers/deepgram';
 import { registerSessionRoute, type Session } from './sessionSocket';
 
-type AppOptions = { config: ServerConfig; provider?: AsrProvider };
+type AppOptions = {
+  config: ServerConfig;
+  provider?: AsrProvider;
+  /** Tests shorten the client liveness check. */
+  pingIntervalMs?: number;
+};
 
-export async function buildApp({ config, provider }: AppOptions) {
+export async function buildApp({ config, provider, pingIntervalMs }: AppOptions) {
   const app = Fastify({
     logger: {
       level: config.logLevel,
@@ -49,6 +54,7 @@ export async function buildApp({ config, provider }: AppOptions) {
     allowedOrigins: config.allowedOrigins,
     access,
     sessions,
+    pingIntervalMs,
   });
 
   /**

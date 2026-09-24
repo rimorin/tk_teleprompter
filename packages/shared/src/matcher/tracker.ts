@@ -49,6 +49,12 @@ export type TrackingState = {
    * pending jumps and from interims, so it appears before the evidence is enough to jump.
    */
   jumpSuggestion: number | null;
+  /**
+   * A new provider session began after an earlier one (a lost connection): the speaker kept
+   * talking meanwhile, so is likely ahead. Until speech matches again, interim results may move
+   * the tentative cursor as far as a final could (a skip-grade match within the local window).
+   */
+  resyncing: boolean;
   lastDecision: MatchDecision | null;
 };
 
@@ -66,6 +72,7 @@ export function initialTrackingState(): TrackingState {
     misses: 0,
     pendingJump: null,
     jumpSuggestion: null,
+    resyncing: false,
     lastDecision: null,
   };
 }
@@ -92,6 +99,7 @@ export function update(
       transcript: EMPTY_BUFFER,
       watermark: START_WATERMARK,
       finalIndexAtLastMatch: 0,
+      resyncing: state.sessionId !== null,
     };
   }
   const { buffer, change } = applyTranscriptEvent(base.transcript, ev);
@@ -224,7 +232,7 @@ function updateConfirmed(
     phrase,
     anchorPos,
     newWords,
-    anchorPos + cfg.localForward,
+    anchorPos + (state.resyncing ? cfg.resyncForward : cfg.localForward),
     cfg.minLocalWords,
     cfg.localThreshold,
   );
@@ -238,7 +246,7 @@ function updateConfirmed(
       truncated,
       anchorPos,
       newWords - cut,
-      anchorPos + cfg.localForward,
+      anchorPos + (state.resyncing ? cfg.resyncForward : cfg.localForward),
       cfg.minLocalWords,
       cfg.localThreshold,
       false,
@@ -260,6 +268,7 @@ function updateConfirmed(
       status: 'tracking',
       misses: 0,
       pendingJump: null,
+      resyncing: false,
       finalIndexAtLastMatch: end,
     };
     if (local.endPosition <= anchorPos) {
@@ -287,6 +296,7 @@ function updateConfirmed(
         status: 'tracking',
         misses: 0,
         pendingJump: null,
+        resyncing: false,
         finalIndexAtLastMatch: end,
         lastDecision: decision('far', ctx, far, phrase),
       };
@@ -324,12 +334,16 @@ function updateTentative(
   }
   const phrase = [...finalWords, ...interimWords].slice(-cfg.phraseWords);
   const anchorPos = positionOf(ctx, state.confirmedTokenId);
+  // Normally a guess may run only a few words ahead; while resyncing it may skip like a final.
+  const hi = state.resyncing
+    ? anchorPos + cfg.resyncForward
+    : anchorPos + interimWords.length + cfg.tentativeMaxLead;
   const best = bestLocal(
     ctx,
     phrase,
     anchorPos,
     interimWords.length,
-    anchorPos + interimWords.length + cfg.tentativeMaxLead,
+    hi,
     cfg.minTentativeWords,
     cfg.tentativeThreshold,
   );
@@ -363,6 +377,7 @@ export function reposition(state: TrackingState, tokenId: number): TrackingState
     misses: 0,
     pendingJump: null,
     jumpSuggestion: null,
+    resyncing: false,
     lastDecision: null,
   };
 }

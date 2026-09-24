@@ -117,7 +117,7 @@ afterEach(async () => {
   while (cleanups.length) await cleanups.pop()!();
 });
 
-async function setup(env: Record<string, string | undefined> = {}) {
+async function setup(env: Record<string, string | undefined> = {}, pingIntervalMs?: number) {
   const upstream = await startUpstream();
   cleanups.push(upstream.close);
   const config = loadConfig({
@@ -126,7 +126,7 @@ async function setup(env: Record<string, string | undefined> = {}) {
     DEEPGRAM_URL: upstream.url,
     ...env,
   } as NodeJS.ProcessEnv);
-  const { app, shutdown } = await buildApp({ config });
+  const { app, shutdown } = await buildApp({ config, pingIntervalMs });
   await app.listen({ port: 0, host: '127.0.0.1' });
   cleanups.push(() => app.close());
   const port = (app.server.address() as AddressInfo).port;
@@ -312,6 +312,59 @@ describe('session websocket', () => {
     const params = new URL(conn.req.url!, 'ws://x').searchParams;
     expect(params.has('encoding')).toBe(false);
     expect(params.has('sample_rate')).toBe(false);
+  });
+
+  it('acknowledges received audio chunks regularly, which doubles as a heartbeat', async () => {
+    const { upstream, wsUrl } = await setup();
+    const client = await connectClient(wsUrl);
+    client.ws.send(start());
+    await client.waitFor(isStatus('listening'), 'listening');
+    for (const n of [1, 2, 3]) client.ws.send(Buffer.alloc(320, n));
+    await until(() => (upstream.connections[0]?.received.length ?? 0) >= 3, 'audio upstream');
+    await client.waitFor((m) => m.type === 'session.ack' && m.chunks === 3, 'ack of 3 chunks');
+    // Acks keep coming while nothing new arrives.
+    const acks = () => client.messages.filter((m) => m.type === 'session.ack').length;
+    const before = acks();
+    await new Promise((r) => setTimeout(r, 600));
+    expect(acks()).toBeGreaterThanOrEqual(before + 2);
+  });
+
+  it('ends the session a reconnecting client replaces, together with its provider stream', async () => {
+    const { upstream, wsUrl } = await setup();
+    const first = await connectClient(wsUrl);
+    first.ws.send(start());
+    const listening = await first.waitFor(isStatus('listening'), 'first listening');
+    const oldId = listening.type === 'session.status' ? listening.sessionId! : '';
+
+    const second = await connectClient(wsUrl);
+    second.ws.send(JSON.stringify({ ...JSON.parse(start()), replaces: oldId }));
+    await second.waitFor(isStatus('listening'), 'second listening');
+    await first.closed;
+    await until(
+      () => upstream.connections[0]!.ws.readyState === WebSocket.CLOSED,
+      'old upstream closed',
+    );
+    expect(second.ws.readyState).toBe(WebSocket.OPEN);
+  });
+
+  it('ends sessions whose client stopped answering pings (lost signal without closing)', async () => {
+    const { upstream, wsUrl } = await setup({}, 100);
+    const silent = await new Promise<WebSocket>((resolve) => {
+      const ws = new WebSocket(wsUrl, { origin: ORIGIN, autoPong: false });
+      ws.on('open', () => resolve(ws));
+    });
+    silent.send(start());
+    const healthy = await connectClient(wsUrl);
+    healthy.ws.send(start());
+    await healthy.waitFor(isStatus('listening'), 'listening');
+    const closedCode = await new Promise<number>((r) => silent.on('close', (code) => r(code)));
+    expect(closedCode).toBe(1006); // dropped, not closed politely
+    await until(
+      () => upstream.connections.filter((c) => c.ws.readyState === WebSocket.OPEN).length === 1,
+      'one upstream left',
+    );
+    await new Promise((r) => setTimeout(r, 300));
+    expect(healthy.ws.readyState).toBe(WebSocket.OPEN);
   });
 
   it('fails fast with a safe error when no API key is configured', async () => {

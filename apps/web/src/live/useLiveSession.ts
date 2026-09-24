@@ -28,7 +28,8 @@ type ClientErrorCode = Parameters<AsrClientHandlers['onError']>[0];
 /** Failures that can clear up by themselves. Others (bad code, time limit…) end the session. */
 const RETRYABLE: ReadonlySet<ClientErrorCode> = new Set<ClientErrorCode>([
   'connection_failed',
-  'network_slow',
+  'connection_timeout',
+  'connection_stalled',
   'asr_unavailable',
   'asr_error',
   'server_busy',
@@ -36,10 +37,18 @@ const RETRYABLE: ReadonlySet<ClientErrorCode> = new Set<ClientErrorCode>([
   'internal',
 ]);
 
-/** Wait before each reconnect attempt (about 40 s in all); resets once listening again. */
-export const RECONNECT_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 8_000, 8_000, 8_000];
-
-const LOST_CONNECTION = 'Lost connection to the server. The buttons still work.';
+/**
+ * Waits before the first reconnect attempts, then RETRY_EVERY_MS for as long as the microphone
+ * is on. Outages are usually seconds long, so retry quickly and never give up; each attempt is
+ * cheap (it fails fast while there is no network). Resets once listening again.
+ */
+export const RECONNECT_DELAYS_MS = [0, 500, 1_000];
+export const RETRY_EVERY_MS = 2_000;
+/**
+ * Time allowed to become ready, by how many attempts in a row ran out of time: short at first
+ * (a hung attempt is best retried), longer when the recognizer is slow but working.
+ */
+export const READY_TIMEOUTS_MS = [5_000, 8_000, 12_000];
 
 /** Microphone + transcription session lifecycle. Manual control never depends on it. */
 export function useLiveSession(handlers: Handlers) {
@@ -47,12 +56,16 @@ export function useLiveSession(handlers: Handlers) {
   const [error, setError] = useState<string | null>(null);
   const micRef = useRef<MicCapture | null>(null);
   const clientRef = useRef<AsrClient | null>(null);
-  const retryRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; attempt: number }>({
-    timer: null,
-    attempt: 0,
-  });
-  /** Settings reused by every connection of one microphone session. */
+  const retryRef = useRef<{
+    timer: ReturnType<typeof setTimeout> | null;
+    attempt: number;
+    /** Attempts in a row that ran out of time becoming ready. */
+    timeouts: number;
+  }>({ timer: null, attempt: 0, timeouts: 0 });
+  /** Settings reused by every connection of one microphone session; null when there is none. */
   const sessionRef = useRef<{ format: AudioFormat; accessCode: string } | null>(null);
+  /** Server id of the connection being replaced, so the server can end it at once. */
+  const replacesRef = useRef<string | null>(null);
   const handlersRef = useRef(handlers);
   useEffect(() => {
     handlersRef.current = handlers;
@@ -63,10 +76,13 @@ export function useLiveSession(handlers: Handlers) {
     if (retry.timer) clearTimeout(retry.timer);
     retry.timer = null;
     retry.attempt = 0;
+    retry.timeouts = 0;
   }, []);
 
   const teardown = useCallback(() => {
     cancelRetry();
+    sessionRef.current = null;
+    replacesRef.current = null;
     const mic = micRef.current;
     micRef.current = null;
     void mic?.stop();
@@ -87,26 +103,48 @@ export function useLiveSession(handlers: Handlers) {
   // openClient and lostConnection call each other, so openClient is reached through a ref.
   const openClientRef = useRef<() => void>(() => {});
 
-  /** The connection failed: try a new session while the microphone keeps running. */
-  const lostConnection = useCallback(
-    (message: string) => {
-      const client = clientRef.current;
-      clientRef.current = null;
-      client?.close();
+  /** The connection failed or stalled: start a fresh one while the microphone keeps running. */
+  const lostConnection = useCallback(() => {
+    const client = clientRef.current;
+    clientRef.current = null;
+    replacesRef.current = client?.sessionId ?? replacesRef.current;
+    client?.close();
+    const retry = retryRef.current;
+    if (!sessionRef.current || retry.timer) return;
+    const delay = RECONNECT_DELAYS_MS[retry.attempt] ?? RETRY_EVERY_MS;
+    retry.attempt++;
+    setPhase('reconnecting');
+    handlersRef.current.onReconnecting();
+    retry.timer = setTimeout(() => {
+      retry.timer = null;
+      openClientRef.current();
+    }, delay);
+  }, []);
+
+  // The phone's own view of the network: act on it at once instead of waiting for timeouts.
+  useEffect(() => {
+    const onOffline = () => {
+      if (clientRef.current) lostConnection();
+    };
+    const onOnline = () => {
       const retry = retryRef.current;
-      const delay = RECONNECT_DELAYS_MS[retry.attempt];
-      // Before the microphone is up there is nothing to keep going, so the start fails.
-      if (!micRef.current || delay === undefined) return interrupt(message);
-      retry.attempt++;
-      setPhase('reconnecting');
-      handlersRef.current.onReconnecting();
-      retry.timer = setTimeout(() => {
-        retry.timer = null;
-        openClientRef.current();
-      }, delay);
-    },
-    [interrupt],
-  );
+      const stuck = clientRef.current && !clientRef.current.isLive;
+      if (!retry.timer && !stuck) return;
+      // Retry now: bring a scheduled attempt forward, or replace one begun while offline.
+      if (retry.timer) clearTimeout(retry.timer);
+      retry.timer = null;
+      const attempt = clientRef.current;
+      clientRef.current = null;
+      attempt?.close();
+      openClientRef.current();
+    };
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [lostConnection]);
 
   useEffect(() => {
     openClientRef.current = () => {
@@ -117,6 +155,7 @@ export function useLiveSession(handlers: Handlers) {
           onStatus: (status) => {
             if (status !== 'listening' || clientRef.current !== client) return;
             retryRef.current.attempt = 0;
+            retryRef.current.timeouts = 0;
             setPhase('listening');
             handlersRef.current.onListening();
           },
@@ -133,19 +172,27 @@ export function useLiveSession(handlers: Handlers) {
               handlersRef.current.onNeedsAccessCode(true);
               return;
             }
-            if (RETRYABLE.has(code)) lostConnection(message);
+            if (code === 'connection_timeout') retryRef.current.timeouts++;
+            if (RETRYABLE.has(code)) lostConnection();
             else interrupt(message);
           },
           onClose: (intentional) => {
-            if (!intentional && clientRef.current === client) lostConnection(LOST_CONNECTION);
+            if (!intentional && clientRef.current === client) lostConnection();
           },
+          onStaleStart: () => micRef.current?.restart(),
         },
-        { accessCode: session.accessCode || undefined, audio: session.format },
+        {
+          accessCode: session.accessCode || undefined,
+          audio: session.format,
+          replaces: replacesRef.current ?? undefined,
+          readyTimeoutMs:
+            READY_TIMEOUTS_MS[Math.min(retryRef.current.timeouts, READY_TIMEOUTS_MS.length - 1)],
+        },
       );
       clientRef.current = client;
       // A new session needs a fresh audio stream (for Opus, a new container header).
       micRef.current?.restart();
-      // The client holds audio until the socket opens.
+      // The client holds audio until the recognizer is listening.
       client.connect();
     };
   });
@@ -173,10 +220,10 @@ export function useLiveSession(handlers: Handlers) {
       return 'needs_code';
     }
     const format = pickAudioFormat();
-    sessionRef.current = { format, accessCode };
+    const session = { format, accessCode };
+    sessionRef.current = session;
     // Connect while the microphone starts.
     openClientRef.current();
-    const client = clientRef.current;
     let mic: MicCapture;
     try {
       mic = await startMicCapture({
@@ -186,7 +233,7 @@ export function useLiveSession(handlers: Handlers) {
           interrupt('The microphone stopped (was it disconnected?). The buttons still work.'),
       });
     } catch (err) {
-      if (clientRef.current === client) {
+      if (sessionRef.current === session) {
         teardown();
         setError(err instanceof MicError ? err.message : 'The microphone could not be started.');
         setPhase('off');
@@ -194,7 +241,7 @@ export function useLiveSession(handlers: Handlers) {
       return 'failed';
     }
     // The session may have ended (error, stop, unmount) while the microphone was starting.
-    if (clientRef.current !== client) {
+    if (sessionRef.current !== session) {
       void mic.stop();
       return 'failed';
     }
@@ -208,6 +255,8 @@ export function useLiveSession(handlers: Handlers) {
     if (!client && !micRef.current) return;
     setPhase('stopping');
     cancelRetry();
+    sessionRef.current = null;
+    replacesRef.current = null;
     const mic = micRef.current;
     micRef.current = null;
     await mic?.stop();
