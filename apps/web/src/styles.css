@@ -1357,6 +1357,37 @@ input[type='range']::-moz-range-thumb {
   color: var(--error);
   flex: none;
 }
+/* "Jump here?" suggestion: the whole chip is the button. */
+.toast.jump {
+  min-height: 48px;
+  width: 100%;
+  padding-right: 0.9rem;
+  text-align: left;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.92rem;
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    var(--shadow);
+  cursor: pointer;
+}
+.toast.jump > svg {
+  flex: none;
+  color: var(--accent);
+}
+.toast.jump q {
+  font-weight: 600;
+}
+.toast.jump .jump-tap {
+  flex: none;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
 @keyframes toast-in {
   from {
     opacity: 0;

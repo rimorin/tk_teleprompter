@@ -23,7 +23,9 @@ export function DiagnosticsPanel({ state }: { state: TrackingState }) {
         <dt>Misses / pending jump</dt>
         <dd>
           {state.misses} /{' '}
-          {state.pendingJump ? `pos ${state.pendingJump.position} ×${state.pendingJump.hits}` : '–'}
+          {state.pendingJump
+            ? `pos ${state.pendingJump.position} · ${state.pendingJump.words} words`
+            : '–'}
         </dd>
         <dt>Recent final</dt>
         <dd>{state.transcript.finalWords.slice(-16).join(' ') || '–'}</dd>

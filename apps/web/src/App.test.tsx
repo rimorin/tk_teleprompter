@@ -147,6 +147,34 @@ describe('App (simulated tracking)', () => {
     expect(screen.getByText('Good', { selector: '[data-tid]' }).className).toContain('spoken');
   });
 
+  it('offers a jump when the speaker skips ahead, and a tap moves there', async () => {
+    presentSample();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Simulation scenario' }), {
+      target: { value: 'detours' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /start simulation/i }));
+    let chip: HTMLElement | null = null;
+    for (let t = 0; t < 120_000 && !chip; t += 250) {
+      await act(async () => {
+        vi.advanceTimersByTime(250);
+      });
+      chip = screen.queryByRole('button', { name: /jump to/i });
+    }
+    expect(chip).not.toBeNull();
+    const confirmedBefore = document.querySelectorAll('.tok.spoken').length;
+    fireEvent.click(chip!);
+    // The tap is a manual reposition: everything up to the suggested spot is now spoken.
+    expect(document.querySelectorAll('.tok.spoken').length).toBeGreaterThan(confirmedBefore);
+    // It is the paragraph the simulated speaker skipped to ("Here is the plan…"), not the ad-lib.
+    expect(document.querySelector('.tok.next')!.closest('[data-pid]')).toHaveAttribute(
+      'data-pid',
+      '3',
+    );
+    expect(screen.queryByRole('button', { name: /jump to/i })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop simulation' }));
+  });
+
   it('pausing freezes the highlight while the simulated speaker continues', async () => {
     presentSample();
     startSimulation();

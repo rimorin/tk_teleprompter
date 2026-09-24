@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  CornerDownRight,
   Keyboard,
   Maximize2,
   Mic,
@@ -110,6 +111,33 @@ function Toast({
         <X size={16} aria-hidden />
       </button>
     </div>
+  );
+}
+
+/** Offers the distant place the speaker seems to have skipped to; one tap moves there. */
+function JumpChip({
+  script,
+  tokenId,
+  onJump,
+}: {
+  script: ParsedScript;
+  tokenId: number;
+  onJump: () => void;
+}) {
+  // The last few words heard there, as written, so the speaker recognizes the spot.
+  const paragraph = script.paragraphs[script.tokens[tokenId]!.paragraphId]!;
+  const from = script.tokens[Math.max(paragraph.firstTokenId, tokenId - 4)]!;
+  const snippet = script.source.slice(from.startOffset, script.tokens[tokenId]!.endOffset);
+  return (
+    <button type="button" className="toast jump" onClick={onJump} aria-live="polite">
+      <CornerDownRight size={18} aria-hidden />
+      <span>
+        Jump to <q>…{snippet}</q>
+      </span>
+      <span className="jump-tap" aria-hidden>
+        Tap
+      </span>
+    </button>
   );
 }
 
@@ -259,6 +287,12 @@ export function PresenterView({
   const connecting = micOn && (live.phase === 'starting' || live.phase === 'connecting');
   const reconnecting = micOn && live.phase === 'reconnecting';
   const paused = tracking.status === 'paused';
+  const jumpTarget =
+    active &&
+    tracking.jumpSuggestion !== null &&
+    tracking.jumpSuggestion > (tracking.confirmedTokenId ?? -1)
+      ? tracking.jumpSuggestion
+      : null;
   // Fade controls away (mouse devices only) while tracking runs normally. Anything needing
   // attention — paused, lost place, disconnected, errors — keeps them visible.
   const idle = useIdle(
@@ -267,7 +301,8 @@ export function PresenterView({
       !settingsOpen &&
       !showShortcuts &&
       !codePrompt &&
-      !live.error,
+      !live.error &&
+      jumpTarget === null,
   );
   useWakeLock(true);
   const title = script.source.slice(0, 80).split(/\s+/).slice(0, 7).join(' ');
@@ -338,6 +373,9 @@ export function PresenterView({
       </div>
 
       <div className="toasts">
+        {jumpTarget !== null && (
+          <JumpChip script={script} tokenId={jumpTarget} onJump={() => goTo(jumpTarget + 1)} />
+        )}
         {live.error && <Toast error message={live.error} onDismiss={live.clearError} />}
         {notice && <Toast message={notice} onDismiss={onDismissNotice} />}
       </div>

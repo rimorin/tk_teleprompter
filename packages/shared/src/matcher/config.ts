@@ -36,13 +36,13 @@ export type MatcherConfig = {
   farUniquenessMargin: number;
   /** Candidates closer than this (tokens) to the best are the same place, not competitors. */
   farCompetitorMinGap: number;
-  /** Far search: consecutive final updates that must agree before jumping. */
-  farConfirmations: number;
+  /**
+   * Far search: spoken words that must agree with a distant candidate before jumping, counted
+   * across updates so the rule doesn't depend on how the provider splits speech into segments.
+   */
+  farConfirmWords: number;
   /** Agreeing far candidates must land within this many tokens after the pending one. */
   farAgreementWindow: number;
-  /** A very strong far match (score and length) may jump without waiting for agreement. */
-  farInstantThreshold: number;
-  farInstantMinWords: number;
   /** Far search is considered only after this many consecutive unmatched final updates. */
   farSearchAfterMisses: number;
   /** Consecutive unmatched final updates before status becomes 'uncertain'. */
@@ -80,10 +80,8 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
   farMinDistinctiveness: 8,
   farUniquenessMargin: 0.15,
   farCompetitorMinGap: 12,
-  farConfirmations: 2,
+  farConfirmWords: 14,
   farAgreementWindow: 25,
-  farInstantThreshold: 0.95,
-  farInstantMinWords: 8,
   farSearchAfterMisses: 1,
   uncertainAfterMisses: 2,
   tentativeMaxLead: 4,

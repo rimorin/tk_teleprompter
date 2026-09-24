@@ -89,15 +89,15 @@ The script follows you. Tap any word to jump there yourself.
 
 Nobody reads a talk word for word. The app is built for that.
 
-| When you…                         | The app…                                                             |
-| --------------------------------- | -------------------------------------------------------------------- |
-| **Pause** to breathe or think     | waits. Nothing moves while you are silent.                           |
-| **Go off script** to tell a story | keeps your place, then picks up when you come back to the script.    |
-| **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes. |
-| **Skip** a sentence or a section  | jumps ahead, but only when it is sure.                               |
-| **Repeat** a line for effect      | never jumps backward by itself.                                      |
-| **Lose the network**              | reconnects by itself and carries on. The buttons always still work.  |
-| **Lose the mic**                  | stops where you are and tells you.                                   |
+| When you…                         | The app…                                                              |
+| --------------------------------- | --------------------------------------------------------------------- |
+| **Pause** to breathe or think     | waits. Nothing moves while you are silent.                            |
+| **Go off script** to tell a story | keeps your place, then picks up when you come back to the script.     |
+| **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes.  |
+| **Skip** a sentence or a section  | offers a **Jump to …** button at once, and jumps by itself when sure. |
+| **Repeat** a line for effect      | never jumps backward by itself.                                       |
+| **Lose the network**              | reconnects by itself and carries on. The buttons always still work.   |
+| **Lose the mic**                  | stops where you are and tells you.                                    |
 
 > [!NOTE]
 > A common phrase like "thank you very much" can appear in many places. On its own, it is never
@@ -314,7 +314,9 @@ flowchart TD
     near -- "yes" --> move["✅ Move forward"]
     near -- "they match text<br/>you already said" --> hold["⏸️ Stay put<br/>(you are repeating)"]
     near -- "no" --> far{"Do they match a rare phrase<br/>further ahead, and only there?"}
-    far -- "yes, twice in a row,<br/>or one very strong match" --> jump["⏩ Jump ahead"]
+    far -- "yes" --> offer["👆 Show a 'Jump to …' button<br/>(one tap moves you there)"]
+    offer -- "about 14 words agree,<br/>across two or more finals" --> jump["⏩ Jump ahead by itself"]
+    offer -- "you go back to where you were" --> gone["The button goes away"]
     far -- "not sure" --> wait["⏸️ Stay put<br/>after a few misses: 'Lost place'"]
 ```
 
@@ -323,6 +325,9 @@ flowchart TD
 - **Guesses only move the amber highlight.** Only final results move your confirmed place, so a
   changed guess can never push you ahead.
 - **It never jumps backward on its own.** Only a tap can move you back.
+- **Far jumps are careful.** Quoting a later part of your talk ("later I'll show you…") must not
+  move the script, so a jump needs about 14 agreeing words. The **Jump to …** button appears much
+  sooner, after about 5 words, so a real skip is still one tap away.
 - All the limits live in one file:
   [`packages/shared/src/matcher/config.ts`](packages/shared/src/matcher/config.ts).
 

@@ -38,8 +38,17 @@ export type TrackingState = {
   finalIndexAtLastMatch: number;
   /** Consecutive final updates with no acceptable match. */
   misses: number;
-  /** Distant candidate awaiting agreement; `stale` after one update that didn't support it. */
-  pendingJump: { position: number; hits: number; stale?: boolean } | null;
+  /**
+   * Distant candidate awaiting agreement: `words` spoken so far that support it, counted up to
+   * absolute final-word position `countedTo`. `stale` after one update that didn't support it.
+   */
+  pendingJump: { position: number; words: number; countedTo: number; stale?: boolean } | null;
+  /**
+   * Last token of a distant place the speaker seems to have skipped to (null = none). Only a
+   * suggestion the presenter can accept with a tap: it never moves either cursor. Set from
+   * pending jumps and from interims, so it appears before the evidence is enough to jump.
+   */
+  jumpSuggestion: number | null;
   lastDecision: MatchDecision | null;
 };
 
@@ -56,6 +65,7 @@ export function initialTrackingState(): TrackingState {
     finalIndexAtLastMatch: 0,
     misses: 0,
     pendingJump: null,
+    jumpSuggestion: null,
     lastDecision: null,
   };
 }
@@ -89,7 +99,11 @@ export function update(
   if (change === 'none' || !isTrackingActive(next.status)) return next;
 
   const { finalWords, interimWords } = wordsAfter(buffer, next.watermark);
-  if (change === 'final') next = updateConfirmed(ctx, next, finalWords);
+  if (change === 'final') {
+    next = updateConfirmed(ctx, next, finalWords);
+    const pending = next.pendingJump;
+    next = { ...next, jumpSuggestion: pending ? ctx.tokenIds[pending.position]! : null };
+  }
   return updateTentative(ctx, next, finalWords, interimWords, change === 'interim');
 }
 
@@ -261,10 +275,12 @@ function updateConfirmed(
   const misses = state.misses + 1;
   far ??= misses >= cfg.farSearchAfterMisses ? bestFar(ctx, phrase, anchorPos) : null;
   if (far) {
-    const hits = pending && agreesWithPending(far) ? pending.hits + 1 : 1;
-    const instant =
-      far.score >= cfg.farInstantThreshold && far.matchedWords >= cfg.farInstantMinWords;
-    if (instant || hits >= cfg.farConfirmations) {
+    // Count each spoken word once, however the provider splits speech into finals.
+    const words =
+      pending && agreesWithPending(far)
+        ? pending.words + Math.min(end - pending.countedTo, far.matchedWords)
+        : far.matchedWords;
+    if (words >= cfg.farConfirmWords) {
       return {
         ...state,
         confirmedTokenId: ctx.tokenIds[far.endPosition]!,
@@ -279,7 +295,7 @@ function updateConfirmed(
       ...state,
       misses,
       status: misses >= cfg.uncertainAfterMisses ? 'uncertain' : state.status,
-      pendingJump: { position: far.endPosition, hits },
+      pendingJump: { position: far.endPosition, words, countedTo: end },
       lastDecision: decision('far-pending', ctx, far, phrase),
     };
   }
@@ -317,13 +333,22 @@ function updateTentative(
     cfg.minTentativeWords,
     cfg.tentativeThreshold,
   );
-  const tentativeTokenId =
-    best && best.endPosition > anchorPos
-      ? ctx.tokenIds[best.endPosition]!
-      : keepOnMiss
-        ? state.tentativeTokenId
-        : null;
-  return tentativeTokenId === state.tentativeTokenId ? state : { ...state, tentativeTokenId };
+  const onTrack = best !== null && best.endPosition > anchorPos;
+  const tentativeTokenId = onTrack
+    ? ctx.tokenIds[best.endPosition]!
+    : keepOnMiss
+      ? state.tentativeTokenId
+      : null;
+  let jumpSuggestion = state.jumpSuggestion;
+  if (onTrack) jumpSuggestion = null;
+  else if (keepOnMiss && phrase.length >= cfg.farMinWords) {
+    // Lost locally: look for a distant match now instead of waiting for the next final.
+    const far = bestFar(ctx, phrase, anchorPos);
+    if (far) jumpSuggestion = ctx.tokenIds[far.endPosition]!;
+  }
+  return tentativeTokenId === state.tentativeTokenId && jumpSuggestion === state.jumpSuggestion
+    ? state
+    : { ...state, tentativeTokenId, jumpSuggestion };
 }
 
 /** Manual reposition: `tokenId` becomes the next token to read; earlier speech is ignored. */
@@ -337,6 +362,7 @@ export function reposition(state: TrackingState, tokenId: number): TrackingState
     finalIndexAtLastMatch: finalWordEnd(state.transcript),
     misses: 0,
     pendingJump: null,
+    jumpSuggestion: null,
     lastDecision: null,
   };
 }
@@ -351,18 +377,37 @@ export function startTracking(state: TrackingState): TrackingState {
     finalIndexAtLastMatch: finalWordEnd(state.transcript),
     misses: 0,
     pendingJump: null,
+    jumpSuggestion: null,
   };
 }
 
 export function pauseTracking(state: TrackingState): TrackingState {
-  return { ...state, status: 'paused', tentativeTokenId: null, pendingJump: null };
+  return {
+    ...state,
+    status: 'paused',
+    tentativeTokenId: null,
+    pendingJump: null,
+    jumpSuggestion: null,
+  };
 }
 
 export function stopTracking(state: TrackingState): TrackingState {
-  return { ...state, status: 'idle', tentativeTokenId: null, pendingJump: null };
+  return {
+    ...state,
+    status: 'idle',
+    tentativeTokenId: null,
+    pendingJump: null,
+    jumpSuggestion: null,
+  };
 }
 
 /** Connection lost: freeze automatic tracking, keep the confirmed cursor. */
 export function markDisconnected(state: TrackingState): TrackingState {
-  return { ...state, status: 'disconnected', tentativeTokenId: null, pendingJump: null };
+  return {
+    ...state,
+    status: 'disconnected',
+    tentativeTokenId: null,
+    pendingJump: null,
+    jumpSuggestion: null,
+  };
 }

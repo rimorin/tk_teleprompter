@@ -347,15 +347,52 @@ describe('tracker: skips, repeats and jumps', () => {
     }
   });
 
-  it('without an instant-strength match, a far jump waits for agreeing finals', () => {
-    const strict = createMatchContext(script, { ...ctx.config, farInstantThreshold: 2 });
+  it('a far jump waits until enough words agree, however speech is split into finals', () => {
+    const start = run(simulate({ actions: [{ type: 'stop', atTokenId: para(1).firstTokenId }] }));
+    const read =
+      'there are risks templates can feel generic and some teams want a blank canvas so every template will be optional and we will measure';
+    const words = read.split(' ');
+    for (const size of [5, 7, 15]) {
+      let s = start.state;
+      const decisions: string[] = [];
+      for (let i = 0; i < words.length && s.lastDecision?.kind !== 'far'; i += size) {
+        s = update(ctx, s, ev('final', words.slice(i, i + size).join(' '), 300_000 + i * 400));
+        decisions.push(s.lastDecision!.kind);
+      }
+      const label = `finals of ${size}`;
+      // Never on the first final, even a long one; a jump once about 14 words agree.
+      expect(decisions[0], label).toBe('far-pending');
+      expect(decisions.at(-1), label).toBe('far');
+      expect(script.tokens[s.confirmedTokenId!]!.paragraphId, label).toBe(6);
+    }
+  });
+
+  it('does not jump when the speaker quotes a later part of the talk, then carries on', () => {
+    const at = find('almost every one');
+    const quote =
+      'our next experiment is guided templates instead of an empty workspace new customers pick a template';
+    let s = run(simulate({ actions: [{ type: 'stop', atTokenId: at }] })).state;
+    const before = s.confirmedTokenId!;
+    s = update(ctx, s, ev('final', `later i will show you ${quote}`, 400_000));
+    expect(s.jumpSuggestion).not.toBeNull(); // offered, not taken
+    expect(s.confirmedTokenId).toBe(before);
+    s = update(ctx, s, ev('final', 'almost every one of them described the same moment', 404_000));
+    expect(s.confirmedTokenId).toBe(endOf('the same moment'));
+    expect(s.jumpSuggestion).toBeNull(); // back on track: the offer goes away
+  });
+
+  it('suggests the likely place from interims as soon as the speaker seems lost', () => {
     let s = run(simulate({ actions: [{ type: 'stop', atTokenId: para(1).firstTokenId }] })).state;
-    s = update(strict, s, ev('final', 'there are risks templates can feel generic', 300_000));
-    expect(script.tokens[s.confirmedTokenId!]!.paragraphId).toBe(0);
-    expect(s.lastDecision?.kind).toBe('far-pending');
-    s = update(strict, s, ev('final', 'and some teams want a blank canvas', 303_000));
-    expect(s.lastDecision?.kind).toBe('far');
-    expect(s.confirmedTokenId).toBe(endOf('a blank canvas'));
+    const confirmed = s.confirmedTokenId;
+    s = update(ctx, s, ev('interim', 'there are risks templates can feel generic', 300_000));
+    expect(s.jumpSuggestion).toBe(endOf('can feel generic'));
+    // A suggestion moves nothing.
+    expect(s.confirmedTokenId).toBe(confirmed);
+    expect(s.tentativeTokenId).toBeNull();
+    // Tapping it is an ordinary manual reposition, which clears it.
+    s = reposition(s, s.jumpSuggestion! + 1);
+    expect(s.confirmedTokenId).toBe(endOf('can feel generic'));
+    expect(s.jumpSuggestion).toBeNull();
   });
 
   it('never jumps backward automatically when the speaker re-reads', () => {
