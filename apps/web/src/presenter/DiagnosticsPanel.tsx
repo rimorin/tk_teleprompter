@@ -1,11 +1,32 @@
+import { useEffect, useState } from 'react';
 import type { TrackingState } from '@teleprompter/shared';
+import type { AsrMetrics } from '../net/asrClient';
+
+const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 /** Development aid: current matcher inputs and decision. Hidden unless toggled (D). */
-export function DiagnosticsPanel({ state }: { state: TrackingState }) {
+export function DiagnosticsPanel({
+  state,
+  getMetrics,
+}: {
+  state: TrackingState;
+  /** Live voice timing; polled only while the panel is open. */
+  getMetrics: () => AsrMetrics | null;
+}) {
+  const [metrics, setMetrics] = useState<AsrMetrics | null>(null);
+  useEffect(() => {
+    const timer = setInterval(() => setMetrics(getMetrics()), 500);
+    return () => clearInterval(timer);
+  }, [getMetrics]);
   const d = state.lastDecision;
   return (
     <aside className="diagnostics" aria-label="Diagnostics">
       <dl>
+        <dt>Recognition delay</dt>
+        <dd>
+          {metrics?.delayMs != null ? seconds(metrics.delayMs) : '–'}
+          {metrics && ` · upload queue ${seconds(metrics.backlogMs)}`}
+        </dd>
         <dt>Status</dt>
         <dd>{state.status}</dd>
         <dt>Confirmed / tentative</dt>

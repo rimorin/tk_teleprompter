@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ERROR_MESSAGES, type AudioFormat, type TranscriptEvent } from '@teleprompter/shared';
 import { MicError, pickAudioFormat, startMicCapture, type MicCapture } from '../audio/micCapture';
-import { AsrClient, type AsrClientHandlers } from '../net/asrClient';
+import { AsrClient, type AsrClientHandlers, type AsrMetrics } from '../net/asrClient';
 import { endpoints } from '../net/endpoints';
 import { fetchHealth } from '../net/health';
 import { loadAccessCode, saveAccessCode } from './accessCode';
@@ -217,12 +217,16 @@ export function useLiveSession(handlers: Handlers) {
     handlersRef.current.onStopped();
   }, [cancelRetry]);
 
+  /** Live timing for Diagnostics, or null when no session is connected. Stable across renders. */
+  const getMetrics = useCallback((): AsrMetrics | null => clientRef.current?.metrics() ?? null, []);
+
   // Release the microphone and socket when the presenter unmounts.
   useEffect(() => teardown, [teardown]);
 
   return {
     phase,
     error,
+    getMetrics,
     clearError: () => setError(null),
     start,
     stop,

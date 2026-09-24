@@ -89,10 +89,14 @@ export async function startMicCapture({ format, onChunk, onEnded }: Handlers): P
   let stream: MediaStream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
+      // Unprocessed audio recognizes best: speech models are trained on real, noisy audio, and
+      // noise suppression removes detail they rely on (Deepgram's guidance for transcription).
+      // Nothing is played back, so echo cancellation has nothing to cancel. Keep auto gain for
+      // speakers who stand back from the phone.
       audio: {
         channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
+        echoCancellation: false,
+        noiseSuppression: false,
         autoGainControl: true,
       },
     });

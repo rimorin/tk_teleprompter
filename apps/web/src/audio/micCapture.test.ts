@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { pickAudioFormat } from './micCapture';
+import { MicError, pickAudioFormat, startMicCapture } from './micCapture';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -19,5 +19,32 @@ describe('pickAudioFormat', () => {
     expect(pickAudioFormat()).toEqual({ encoding: 'linear16', sampleRate: 16000, channels: 1 });
     vi.stubGlobal('MediaRecorder', undefined);
     expect(pickAudioFormat()).toEqual({ encoding: 'linear16', sampleRate: 16000, channels: 1 });
+  });
+});
+
+describe('startMicCapture', () => {
+  it('asks for unprocessed audio: no noise suppression or echo cancellation, auto gain on', async () => {
+    let asked: MediaStreamConstraints | undefined;
+    vi.stubGlobal('isSecureContext', true);
+    vi.stubGlobal('navigator', {
+      mediaDevices: {
+        getUserMedia: async (c: MediaStreamConstraints) => {
+          asked = c;
+          throw new DOMException('denied', 'NotAllowedError');
+        },
+      },
+    });
+    await expect(
+      startMicCapture({
+        format: { encoding: 'opus', container: 'webm' },
+        onChunk: () => {},
+        onEnded: () => {},
+      }),
+    ).rejects.toBeInstanceOf(MicError);
+    expect(asked?.audio).toMatchObject({
+      noiseSuppression: false,
+      echoCancellation: false,
+      autoGainControl: true,
+    });
   });
 });

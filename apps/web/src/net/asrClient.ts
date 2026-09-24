@@ -1,4 +1,5 @@
 import {
+  AUDIO_FRAME_MS,
   AUDIO_SAMPLE_RATE,
   OPUS_BITS_PER_SECOND,
   PROTOCOL_VERSION,
@@ -19,6 +20,20 @@ const MAX_BUFFERED_OPUS_BYTES = (OPUS_BITS_PER_SECOND / 8) * 2;
 const MAX_PENDING_OPUS_BYTES = 64_000;
 const PCM_16K: AudioFormat = { encoding: 'linear16', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 };
 const STOP_TIMEOUT_MS = 3_000;
+/** Recent interim results used for the recognition-delay median. */
+const DELAY_SAMPLES = 15;
+
+/** Live timing for the Diagnostics panel. Numbers only: never audio or words. */
+export type AsrMetrics = {
+  /**
+   * How long after a word was spoken it came back (median of recent interim results), from the
+   * audio sent so far vs. where the latest result ends (Deepgram's latency measure). Null
+   * until a result with word timings arrives.
+   */
+  delayMs: number | null;
+  /** Seconds of audio waiting to leave this device (socket queue plus audio held while connecting). */
+  backlogMs: number;
+};
 
 export type AsrClientHandlers = {
   onStatus: (status: SessionStatus) => void;
@@ -41,6 +56,9 @@ export class AsrClient {
   /** Audio captured while the socket is still connecting, sent right after session.start. */
   private pending: ArrayBuffer[] = [];
   private pendingBytes = 0;
+  /** When the first audio of this session was captured (performance.now), for delay timing. */
+  private audioStartedAt: number | null = null;
+  private delays: number[] = [];
 
   constructor(
     private readonly url: string,
@@ -92,6 +110,11 @@ export class AsrClient {
         case 'transcript.interim':
         case 'transcript.final': {
           const { type, ...fields } = msg;
+          // Deepgram advises timing interim results only (finals may end early).
+          const lastWordEnd = msg.words?.at(-1)?.endMs;
+          if (type === 'transcript.interim' && lastWordEnd !== undefined) {
+            this.recordDelay(lastWordEnd);
+          }
           this.handlers.onTranscript({
             ...fields,
             kind: type === 'transcript.final' ? 'final' : 'interim',
@@ -121,6 +144,8 @@ export class AsrClient {
    */
   sendAudio(chunk: ArrayBuffer): boolean {
     const ws = this.ws;
+    // The session's audio clock starts with its first chunk, which began one frame earlier.
+    this.audioStartedAt ??= performance.now() - AUDIO_FRAME_MS;
     if (ws && ws.readyState === WebSocket.CONNECTING && !this.intentional) {
       this.pending.push(chunk);
       this.pendingBytes += chunk.byteLength;
@@ -148,6 +173,24 @@ export class AsrClient {
       'The network is too slow for voice following right now. The buttons still work.',
     );
     this.close();
+  }
+
+  metrics(): AsrMetrics {
+    const sorted = [...this.delays].sort((a, b) => a - b);
+    const queued = (this.ws?.bufferedAmount ?? 0) + this.pendingBytes;
+    const bytesPerSecond =
+      this.audio.encoding === 'linear16' ? this.audio.sampleRate * 2 : OPUS_BITS_PER_SECOND / 8;
+    return {
+      delayMs: sorted.length ? sorted[Math.floor(sorted.length / 2)]! : null,
+      backlogMs: (queued / bytesPerSecond) * 1000,
+    };
+  }
+
+  private recordDelay(lastWordEndMs: number) {
+    if (this.audioStartedAt === null) return;
+    const delay = performance.now() - (this.audioStartedAt + lastWordEndMs);
+    this.delays.push(Math.max(0, delay));
+    if (this.delays.length > DELAY_SAMPLES) this.delays.shift();
   }
 
   /** Ask the server to finalize and end the session; resolves once the socket closes. */

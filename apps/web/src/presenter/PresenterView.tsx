@@ -403,7 +403,7 @@ export function PresenterView({
             </div>
           </div>
         </div>
-        {showDiagnostics && <DiagnosticsPanel state={tracking} />}
+        {showDiagnostics && <DiagnosticsPanel state={tracking} getMetrics={live.getMetrics} />}
       </div>
 
       <div className="toasts">

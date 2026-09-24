@@ -147,6 +147,37 @@ describe('AsrClient', () => {
     expect(h.onClose).toHaveBeenCalledWith(true);
   });
 
+  it('measures recognition delay from interim word timings, and the upload queue', () => {
+    let now = 1_000;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const client = new AsrClient('ws://x/ws', handlers(), {
+      audio: { encoding: 'opus', container: 'webm' },
+    });
+    client.connect();
+    const ws = FakeWebSocket.last!;
+    expect(client.metrics()).toEqual({ delayMs: null, backlogMs: 0 });
+    client.sendAudio(new ArrayBuffer(400)); // audio clock starts one 100 ms frame earlier: 900
+    ws.open();
+    const result = (type: string, endMs: number) => ({
+      type,
+      sessionId: 's',
+      segmentId: 'dg-0',
+      segmentOrder: 0,
+      sequence: 1,
+      text: 'hello',
+      words: [{ text: 'hello', startMs: endMs - 300, endMs }],
+    });
+    now = 2_500;
+    ws.receive(result('transcript.interim', 1_200)); // said at 900 + 1200 = 2100, heard at 2500
+    expect(client.metrics().delayMs).toBe(400);
+    now = 2_600;
+    ws.receive(result('transcript.final', 100)); // finals may end early: not timed
+    expect(client.metrics().delayMs).toBe(400);
+    ws.bufferedAmount = 8_000; // 2 s of 32 kbit/s Opus
+    expect(client.metrics().backlogMs).toBe(2_000);
+    clock.mockRestore();
+  });
+
   it('stop() requests finalization and reports an intentional close', async () => {
     const h = handlers();
     const client = new AsrClient('ws://x/ws', h);
