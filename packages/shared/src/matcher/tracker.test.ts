@@ -139,6 +139,41 @@ describe('tracker: interim and final handling', () => {
     expect(s.transcript.finalWords).toHaveLength(7);
   });
 
+  it('keeps the tentative cursor when an interim revision does not match', () => {
+    let s = startTracking(initialTrackingState());
+    s = update(ctx, s, ev('interim', 'good morning and thank', 0));
+    expect(s.tentativeTokenId).toBe(find('thank'));
+    s = update(ctx, s, ev('interim', 'bananas later thing okay maybe', 0));
+    expect(s.tentativeTokenId).toBe(find('thank'));
+    // A final commits and clears it.
+    s = update(ctx, s, ev('final', 'good morning and thank you very much', 0));
+    expect(s.confirmedTokenId).toBe(find('much'));
+    expect(s.tentativeTokenId).toBeNull();
+  });
+
+  it('never moves the reading focus backward on an interim (Deepgram-like cadence)', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const trace = run(
+        simulate({
+          seed,
+          substitutionRate: 0.1,
+          fillerRate: 0.08,
+          interimRevisionRate: 0.3,
+          interimEveryWords: 3,
+          segmentWords: [8, 20],
+          finalLatencyMs: 600,
+        }),
+      );
+      const focus = (s: TrackingState) => s.tentativeTokenId ?? s.confirmedTokenId ?? -1;
+      for (let i = 1; i < trace.history.length; i++) {
+        const { sim, state } = trace.history[i]!;
+        if (sim.event.kind !== 'interim') continue;
+        expect(focus(state)).toBeGreaterThanOrEqual(focus(trace.history[i - 1]!.state));
+        expect((state.tentativeTokenId ?? -1) - (sim.truthTokenId ?? -1)).toBeLessThanOrEqual(0);
+      }
+    }
+  });
+
   it('ignores stale (out-of-order) interim revisions', () => {
     let s = startTracking(initialTrackingState());
     s = update(ctx, s, { ...ev('interim', 'good morning and thank you', 0), sequence: 50 });

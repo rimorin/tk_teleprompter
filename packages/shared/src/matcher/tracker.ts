@@ -90,7 +90,7 @@ export function update(
 
   const { finalWords, interimWords } = wordsAfter(buffer, next.watermark);
   if (change === 'final') next = updateConfirmed(ctx, next, finalWords);
-  return updateTentative(ctx, next, finalWords, interimWords);
+  return updateTentative(ctx, next, finalWords, interimWords, change === 'interim');
 }
 
 type Scored = AlignmentCandidate & { adjusted: number; phrase: string[] };
@@ -299,6 +299,8 @@ function updateTentative(
   state: TrackingState,
   finalWords: string[],
   interimWords: string[],
+  /** An unmatched interim revision (often a still-garbled last word) keeps the previous tentative. */
+  keepOnMiss: boolean,
 ): TrackingState {
   const cfg = ctx.config;
   if (!interimWords.length) {
@@ -316,7 +318,11 @@ function updateTentative(
     cfg.tentativeThreshold,
   );
   const tentativeTokenId =
-    best && best.endPosition > anchorPos ? ctx.tokenIds[best.endPosition]! : null;
+    best && best.endPosition > anchorPos
+      ? ctx.tokenIds[best.endPosition]!
+      : keepOnMiss
+        ? state.tentativeTokenId
+        : null;
   return tentativeTokenId === state.tentativeTokenId ? state : { ...state, tentativeTokenId };
 }
 
