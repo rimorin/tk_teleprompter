@@ -84,9 +84,10 @@ Use this when your front-end host can't proxy WebSockets. The front end is built
 
 **Build-time (front end only)**
 
-| Variable          | Default             | Purpose                                                                                            |
-| ----------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
-| `VITE_API_ORIGIN` | empty (same origin) | API origin for topology B, e.g. `https://api.example.com`. Docker: `--build-arg VITE_API_ORIGIN=…` |
+| Variable          | Default                                   | Purpose                                                                                                                                                      |
+| ----------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_API_ORIGIN` | empty (same origin)                       | API origin for topology B, e.g. `https://api.example.com`. Docker: `--build-arg VITE_API_ORIGIN=…`                                                           |
+| `VITE_PUBLIC_URL` | empty (the host each page is served from) | Public site URL for link previews (WhatsApp, iMessage, Slack…), e.g. `https://talk.example.com`. Needed on static hosts; the web image fills in its own host |
 
 ## Recipes
 

@@ -13,7 +13,39 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>Teleprompter</title>
+    <title>Teleprompter: a script that follows your voice</title>
+    <meta
+      name="description"
+      content="Paste your talk, tap the mic and speak. The script follows your voice and keeps your line at eye level, so you can look at your audience, not your notes."
+    />
+    <!--
+      Link previews (WhatsApp, iMessage, Slack, LinkedIn, X…). They need absolute URLs; the site
+      origin placeholder is filled in by vite.config.ts (VITE_PUBLIC_URL at build time, or the
+      host each page is served from, via Caddy templates in apps/web/Caddyfile).
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Teleprompter" />
+    <meta property="og:title" content="Teleprompter: a script that follows your voice" />
+    <meta
+      property="og:description"
+      content="Paste your talk, tap the mic and speak. The script keeps up with you, so you can look at your audience, not your notes."
+    />
+    <meta property="og:url" content="__SITE_ORIGIN__/" />
+    <meta property="og:image" content="__SITE_ORIGIN__/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Teleprompter: a script that follows your voice. A sample line shows spoken words faded, heard words glowing and the next word highlighted."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Teleprompter: a script that follows your voice" />
+    <meta
+      name="twitter:description"
+      content="Paste your talk, tap the mic and speak. The script keeps up with you."
+    />
+    <meta name="twitter:image" content="__SITE_ORIGIN__/og-image.png" />
   </head>
   <body>
     <div id="root"></div>

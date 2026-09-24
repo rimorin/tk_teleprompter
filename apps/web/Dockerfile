@@ -17,6 +17,9 @@ COPY apps/web apps/web
 # Optional: bake in a separately hosted API origin (default: same origin, via the proxy below).
 ARG VITE_API_ORIGIN=
 ENV VITE_API_ORIGIN=$VITE_API_ORIGIN
+# Optional: the public site URL for link previews (default: the host each page is served from).
+ARG VITE_PUBLIC_URL=
+ENV VITE_PUBLIC_URL=$VITE_PUBLIC_URL
 RUN pnpm --filter @teleprompter/web build
 
 FROM caddy:2-alpine
