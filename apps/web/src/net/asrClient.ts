@@ -1,20 +1,29 @@
 import {
   AUDIO_SAMPLE_RATE,
+  OPUS_BITS_PER_SECOND,
   PROTOCOL_VERSION,
   ServerMessage,
+  type AudioFormat,
   type ErrorCode,
   type SessionStatus,
   type TranscriptEvent,
 } from '@teleprompter/shared';
 
-/** Stop sending (drop audio) when this much is queued in the socket: ~2 s of 16 kHz PCM16. */
+/** PCM: drop audio when this much is queued in the socket, ~2 s of 16 kHz PCM16. */
 const MAX_BUFFERED_BYTES = 64_000;
+/**
+ * Opus can't be dropped without corrupting the stream, so a backlog of ~2 s ends the session
+ * instead. While connecting, up to ~16 s is held.
+ */
+const MAX_BUFFERED_OPUS_BYTES = (OPUS_BITS_PER_SECOND / 8) * 2;
+const MAX_PENDING_OPUS_BYTES = 64_000;
+const PCM_16K: AudioFormat = { encoding: 'linear16', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 };
 const STOP_TIMEOUT_MS = 3_000;
 
 export type AsrClientHandlers = {
   onStatus: (status: SessionStatus) => void;
   onTranscript: (event: TranscriptEvent) => void;
-  onError: (code: ErrorCode | 'connection_failed', message: string) => void;
+  onError: (code: ErrorCode | 'connection_failed' | 'network_slow', message: string) => void;
   /** Socket closed. `intentional` is true after stop()/close(). */
   onClose: (intentional: boolean) => void;
 };
@@ -26,14 +35,23 @@ export class AsrClient {
   private closed = false;
   private readonly accessCode: string | undefined;
   private readonly maxBufferedBytes: number;
+  private readonly audio: AudioFormat;
+  /** Compressed streams must arrive whole: never drop a chunk. */
+  private readonly lossless: boolean;
+  /** Audio captured while the socket is still connecting, sent right after session.start. */
+  private pending: ArrayBuffer[] = [];
+  private pendingBytes = 0;
 
   constructor(
     private readonly url: string,
     private readonly handlers: AsrClientHandlers,
-    options: { accessCode?: string; maxBufferedBytes?: number } = {},
+    options: { accessCode?: string; audio?: AudioFormat; maxBufferedBytes?: number } = {},
   ) {
     this.accessCode = options.accessCode;
-    this.maxBufferedBytes = options.maxBufferedBytes ?? MAX_BUFFERED_BYTES;
+    this.audio = options.audio ?? PCM_16K;
+    this.lossless = this.audio.encoding !== 'linear16';
+    this.maxBufferedBytes =
+      options.maxBufferedBytes ?? (this.lossless ? MAX_BUFFERED_OPUS_BYTES : MAX_BUFFERED_BYTES);
   }
 
   connect(): void {
@@ -48,10 +66,13 @@ export class AsrClient {
           type: 'session.start',
           v: PROTOCOL_VERSION,
           language: 'en',
-          audio: { encoding: 'linear16', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 },
+          audio: this.audio,
           ...(this.accessCode ? { accessCode: this.accessCode } : {}),
         }),
       );
+      for (const pcm of this.pending) ws.send(pcm);
+      this.pending = [];
+      this.pendingBytes = 0;
     };
     ws.onmessage = (e) => {
       if (typeof e.data !== 'string') return;
@@ -85,20 +106,48 @@ export class AsrClient {
       }
     };
     ws.onclose = () => {
+      this.pending = [];
+      this.pendingBytes = 0;
       if (this.closed) return;
       this.closed = true;
       this.handlers.onClose(this.intentional);
     };
   }
 
-  /** Send one audio frame, or drop it if the network is backed up. Returns false if dropped. */
-  sendAudio(pcm: ArrayBuffer): boolean {
+  /**
+   * Send one audio chunk. While connecting, chunks are held so the first words aren't lost (PCM
+   * drops the oldest beyond the limit). Returns false if dropped: socket gone or network backed
+   * up. A backed-up Opus stream can't drop audio, so it ends the session instead.
+   */
+  sendAudio(chunk: ArrayBuffer): boolean {
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN || ws.bufferedAmount > this.maxBufferedBytes) {
+    if (ws && ws.readyState === WebSocket.CONNECTING && !this.intentional) {
+      this.pending.push(chunk);
+      this.pendingBytes += chunk.byteLength;
+      if (this.lossless) {
+        if (this.pendingBytes > MAX_PENDING_OPUS_BYTES) this.failSlow();
+        return !this.intentional;
+      }
+      while (this.pendingBytes > this.maxBufferedBytes && this.pending.length > 1) {
+        this.pendingBytes -= this.pending.shift()!.byteLength;
+      }
+      return true;
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    if (ws.bufferedAmount > this.maxBufferedBytes) {
+      if (this.lossless) this.failSlow();
       return false;
     }
-    ws.send(pcm);
+    ws.send(chunk);
     return true;
+  }
+
+  private failSlow() {
+    this.handlers.onError(
+      'network_slow',
+      'The network is too slow for voice tracking right now. Manual control still works.',
+    );
+    this.close();
   }
 
   /** Ask the server to finalize and end the session; resolves once the socket closes. */

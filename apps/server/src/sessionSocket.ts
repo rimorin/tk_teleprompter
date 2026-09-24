@@ -62,6 +62,8 @@ export class Session {
   private state: 'awaiting_start' | 'active' | 'stopping' | 'closed' = 'awaiting_start';
   private sequence = 0;
   private admitted = false;
+  /** PCM frames must hold whole 16-bit samples; compressed chunks can be any length. */
+  private pcm = true;
   private readonly startTimer: NodeJS.Timeout;
   private lifetimeTimer: NodeJS.Timeout | null = null;
   private readonly log: FastifyBaseLogger;
@@ -87,7 +89,7 @@ export class Session {
   private onMessage(data: RawData, isBinary: boolean) {
     const buf = Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data as ArrayBuffer);
     if (isBinary) {
-      if (buf.length > MAX_AUDIO_FRAME_BYTES || buf.length % 2 !== 0)
+      if (buf.length > MAX_AUDIO_FRAME_BYTES || (this.pcm && buf.length % 2 !== 0))
         return this.fail('bad_message');
       if (this.state === 'active') this.stream?.sendAudio(buf);
       return;
@@ -110,6 +112,7 @@ export class Session {
       const denied = this.access.admit(this.ip, msg.accessCode);
       if (denied) return this.fail(denied);
       this.admitted = true;
+      this.pcm = msg.audio.encoding === 'linear16';
       // Bound the cost of any one session (e.g. a forgotten open tab).
       this.lifetimeTimer = setTimeout(
         () => this.end('session_time_limit'),
@@ -147,7 +150,7 @@ export class Session {
         },
       );
       this.log.info(
-        { provider: this.provider.name, sampleRate: msg.audio.sampleRate },
+        { provider: this.provider.name, encoding: msg.audio.encoding },
         'session started',
       );
       return;

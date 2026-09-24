@@ -104,15 +104,47 @@ describe('AsrClient', () => {
     expect(h.onStatus).not.toHaveBeenCalled();
   });
 
-  it('drops audio instead of queueing when the socket is backed up or not open', () => {
+  it('holds audio while connecting and sends it right after session.start', () => {
+    const client = new AsrClient('ws://x/ws', handlers(), { maxBufferedBytes: 7000 });
+    client.connect();
+    const ws = FakeWebSocket.last!;
+    const frames = [1, 2, 3].map((n) => new Uint8Array(3200).fill(n).buffer);
+    for (const f of frames) expect(client.sendAudio(f)).toBe(true);
+    expect(ws.sent).toHaveLength(0);
+    ws.open();
+    expect(JSON.parse(ws.sent[0] as string).type).toBe('session.start');
+    // Bounded: the oldest frame was dropped to stay under the limit.
+    expect(ws.sent.slice(1)).toEqual(frames.slice(1));
+  });
+
+  it('drops audio when the socket is backed up or closed', () => {
     const client = new AsrClient('ws://x/ws', handlers(), { maxBufferedBytes: 1000 });
     client.connect();
     const ws = FakeWebSocket.last!;
-    expect(client.sendAudio(new ArrayBuffer(3200))).toBe(false); // still connecting
     ws.open();
     expect(client.sendAudio(new ArrayBuffer(3200))).toBe(true);
     ws.bufferedAmount = 5000;
     expect(client.sendAudio(new ArrayBuffer(3200))).toBe(false);
+    ws.close();
+    expect(client.sendAudio(new ArrayBuffer(3200))).toBe(false);
+  });
+
+  it('streams Opus without ever dropping a chunk, ending the session if the network backs up', () => {
+    const h = handlers();
+    const client = new AsrClient('ws://x/ws', h, {
+      audio: { encoding: 'opus', container: 'webm' },
+    });
+    client.connect();
+    const ws = FakeWebSocket.last!;
+    const chunks = Array.from({ length: 30 }, (_, n) => new Uint8Array(1000).fill(n).buffer);
+    for (const c of chunks) expect(client.sendAudio(c)).toBe(true); // 30 KB while connecting
+    ws.open();
+    expect(JSON.parse(ws.sent[0] as string).audio).toEqual({ encoding: 'opus', container: 'webm' });
+    expect(ws.sent.slice(1)).toEqual(chunks); // all of them, header chunk first
+    ws.bufferedAmount = 20_000;
+    expect(client.sendAudio(new ArrayBuffer(500))).toBe(false);
+    expect(h.onError).toHaveBeenCalledWith('network_slow', expect.any(String));
+    expect(h.onClose).toHaveBeenCalledWith(true);
   });
 
   it('stop() requests finalization and reports an intentional close', async () => {

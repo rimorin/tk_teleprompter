@@ -3,11 +3,27 @@ import { z } from 'zod';
 /** Bump when the client/server message contract changes incompatibly. */
 export const PROTOCOL_VERSION = 1;
 
-/** Audio format the browser sends: mono 16-bit little-endian PCM. */
+/** Uncompressed fallback the browser sends: mono 16-bit little-endian PCM. */
 export const AUDIO_SAMPLE_RATE = 16_000;
 export const AUDIO_FRAME_MS = 100;
-/** Largest binary audio frame the server accepts (1 s of audio, well above one 100 ms frame). */
+/** Target bitrate for compressed (Opus) audio: ~8x smaller than PCM, ample for speech. */
+export const OPUS_BITS_PER_SECOND = 32_000;
+/** Largest binary audio frame the server accepts (1 s of PCM, well above one 100 ms frame). */
 export const MAX_AUDIO_FRAME_BYTES = AUDIO_SAMPLE_RATE * 2;
+
+/**
+ * Audio the client streams: raw PCM, or Opus in a container (the browser's MediaRecorder output).
+ * Containerized chunks are one continuous stream and must never be dropped or reordered.
+ */
+export const AudioFormat = z.discriminatedUnion('encoding', [
+  z.object({
+    encoding: z.literal('linear16'),
+    sampleRate: z.number().int().min(8_000).max(48_000),
+    channels: z.literal(1),
+  }),
+  z.object({ encoding: z.literal('opus'), container: z.enum(['webm', 'ogg']) }),
+]);
+export type AudioFormat = z.infer<typeof AudioFormat>;
 
 // Client -> server (JSON text frames; audio travels as binary frames after session.start).
 
@@ -15,11 +31,7 @@ const SessionStartMessage = z.object({
   type: z.literal('session.start'),
   v: z.number().int(),
   language: z.string().regex(/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/),
-  audio: z.object({
-    encoding: z.literal('linear16'),
-    sampleRate: z.number().int().min(8_000).max(48_000),
-    channels: z.literal(1),
-  }),
+  audio: AudioFormat,
   /** Required when the server sets APP_ACCESS_CODE. */
   accessCode: z.string().max(256).optional(),
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ERROR_MESSAGES, type TranscriptEvent } from '@teleprompter/shared';
-import { MicError, startMicCapture, type MicCapture } from '../audio/micCapture';
+import { MicError, pickAudioFormat, startMicCapture, type MicCapture } from '../audio/micCapture';
 import { AsrClient } from '../net/asrClient';
 import { endpoints } from '../net/endpoints';
 import { fetchHealth } from '../net/health';
@@ -72,20 +72,9 @@ export function useLiveSession(handlers: Handlers) {
       handlersRef.current.onNeedsAccessCode(false);
       return 'needs_code';
     }
-    let client: AsrClient | null = null;
-    try {
-      micRef.current = await startMicCapture({
-        onChunk: (pcm) => client?.sendAudio(pcm),
-        onEnded: () =>
-          interrupt('The microphone stopped (was it disconnected?). Manual control still works.'),
-      });
-    } catch (err) {
-      setError(err instanceof MicError ? err.message : 'The microphone could not be started.');
-      setPhase('off');
-      return 'failed';
-    }
-    setPhase('connecting');
-    client = new AsrClient(
+    const format = pickAudioFormat();
+    // Connect while the microphone starts; the client holds early audio until the socket opens.
+    const client: AsrClient = new AsrClient(
       endpoints.sessionUrl,
       {
         onStatus: (status) => {
@@ -112,10 +101,33 @@ export function useLiveSession(handlers: Handlers) {
           }
         },
       },
-      { accessCode: accessCode || undefined },
+      { accessCode: accessCode || undefined, audio: format },
     );
     clientRef.current = client;
     client.connect();
+    let mic: MicCapture;
+    try {
+      mic = await startMicCapture({
+        format,
+        onChunk: (chunk) => client.sendAudio(chunk),
+        onEnded: () =>
+          interrupt('The microphone stopped (was it disconnected?). Manual control still works.'),
+      });
+    } catch (err) {
+      if (clientRef.current === client) {
+        teardown();
+        setError(err instanceof MicError ? err.message : 'The microphone could not be started.');
+        setPhase('off');
+      }
+      return 'failed';
+    }
+    // The session may have ended (error, stop, unmount) while the microphone was starting.
+    if (clientRef.current !== client) {
+      void mic.stop();
+      return 'failed';
+    }
+    micRef.current = mic;
+    setPhase((p) => (p === 'starting' ? 'connecting' : p));
     return 'started';
   }, [interrupt, teardown]);
 

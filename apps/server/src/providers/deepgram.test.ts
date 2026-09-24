@@ -60,4 +60,17 @@ describe('DeepgramProvider', () => {
     // Credentials go in the Authorization header, never the URL.
     expect([...url.searchParams.values()]).not.toContain('k');
   });
+
+  it('lets Deepgram read containerized Opus from its header', () => {
+    const url = new URL(
+      new DeepgramProvider({
+        apiKey: 'k',
+        url: 'wss://api.deepgram.com/v1/listen',
+        model: 'nova-3',
+      }).buildUrl({ encoding: 'opus', container: 'webm', language: 'en' }),
+    );
+    expect(url.searchParams.get('model')).toBe('nova-3');
+    for (const p of ['encoding', 'sample_rate', 'channels'])
+      expect(url.searchParams.has(p)).toBe(false);
+  });
 });

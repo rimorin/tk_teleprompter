@@ -212,7 +212,7 @@ are also built in.
 ┌───────────────────────── Browser ──────────────────────────┐
 │ Script parser → tokens (with original text offsets)         │
 │ Presenter UI · manual controls · smooth scroll controller   │
-│ Microphone → AudioWorklet (resample to 16 kHz PCM) ─┐       │
+│ Microphone → Opus (MediaRecorder) or 16 kHz PCM ────┐       │
 │ Pure matcher: transcript → confirmed / tentative ◀──┼──┐    │
 └─────────────────────────────────────────────────────┼──┼────┘
                               audio frames (WebSocket)│  │ normalized transcript events

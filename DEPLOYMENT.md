@@ -232,8 +232,9 @@ Rules of thumb:
 
 - **Size:** a small instance (0.5 vCPU, 256 MB) comfortably serves dozens of simultaneous
   speakers. Keep one api replica (limits are in memory).
-- **Bandwidth:** about 32 KB/s (≈ 256 kbit/s) per active microphone, in each direction between
-  browser → api → provider.
+- **Bandwidth:** about 4 KB/s (≈ 32 kbit/s) per active microphone where the browser records
+  Opus (Chrome, Edge, Firefox, Android), or 32 KB/s (≈ 256 kbit/s) with the raw PCM fallback,
+  in each direction between browser → api → provider.
 - **App limits:** `MAX_CONCURRENT_SESSIONS` (default 10) caps everyone combined;
   `MAX_SESSIONS_PER_IP` (default 10) caps one network address. Speakers at the same venue or
   office usually share a public IP, so keep the per-IP limit at least your group size. Raise

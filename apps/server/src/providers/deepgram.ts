@@ -14,8 +14,13 @@ type DeepgramOptions = {
 const DEFAULT_KEEPALIVE_MS = 4_000;
 /** Silence (ms) before Deepgram finalizes a segment. */
 const ENDPOINTING_MS = 300;
-/** Audio buffered while the upstream connection opens; older audio is dropped beyond this. */
+/** Audio buffered while the upstream connection opens; older PCM is dropped beyond this. */
 const MAX_PENDING_SECONDS = 2;
+/**
+ * Containerized (Opus) audio can't be dropped without corrupting the stream, so it is buffered
+ * whole; beyond this (~16 s at 32 kbps) the provider is treated as unavailable.
+ */
+const MAX_PENDING_CONTAINER_BYTES = 64_000;
 /** How long to wait for Deepgram to close after CloseStream before forcing it. */
 const FINISH_TIMEOUT_MS = 3_000;
 
@@ -32,9 +37,14 @@ export class DeepgramProvider implements AsrProvider {
     const params: Record<string, string> = {
       model: this.opts.model,
       language: format.language,
-      encoding: format.encoding,
-      sample_rate: String(format.sampleRate),
-      channels: String(format.channels),
+      // Containerized audio: Deepgram reads encoding and sample rate from the container header.
+      ...(format.encoding === 'linear16'
+        ? {
+            encoding: format.encoding,
+            sample_rate: String(format.sampleRate),
+            channels: String(format.channels),
+          }
+        : {}),
       interim_results: 'true',
       endpointing: String(ENDPOINTING_MS),
       // Punctuation and formatting are unnecessary for matching (it normalizes them away).
@@ -60,6 +70,7 @@ class DeepgramStream implements AsrStream {
   private closedIntentionally = false;
   private done = false;
   private readonly maxPendingBytes: number;
+  private readonly lossless: boolean;
 
   constructor(
     url: string,
@@ -67,7 +78,11 @@ class DeepgramStream implements AsrStream {
     format: AudioFormat,
     private readonly cb: AsrCallbacks,
   ) {
-    this.maxPendingBytes = format.sampleRate * 2 * MAX_PENDING_SECONDS; // 16-bit mono
+    this.lossless = format.encoding !== 'linear16';
+    this.maxPendingBytes =
+      format.encoding === 'linear16'
+        ? format.sampleRate * 2 * MAX_PENDING_SECONDS // 16-bit mono
+        : MAX_PENDING_CONTAINER_BYTES;
     this.ws = new WebSocket(url, { headers: { Authorization: `Token ${opts.apiKey ?? ''}` } });
 
     this.ws.on('open', () => {
@@ -128,6 +143,10 @@ class DeepgramStream implements AsrStream {
     // Bounded buffer while connecting: drop the oldest audio rather than grow without limit.
     this.pending.push(chunk);
     this.pendingBytes += chunk.length;
+    if (this.lossless && this.pendingBytes > this.maxPendingBytes) {
+      this.fail('asr_unavailable');
+      return;
+    }
     while (this.pendingBytes > this.maxPendingBytes && this.pending.length > 1) {
       this.pendingBytes -= this.pending.shift()!.length;
     }

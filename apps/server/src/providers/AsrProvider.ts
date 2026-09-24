@@ -1,4 +1,8 @@
-import type { ErrorCode, TranscriptWord } from '@teleprompter/shared';
+import type {
+  AudioFormat as ClientAudioFormat,
+  ErrorCode,
+  TranscriptWord,
+} from '@teleprompter/shared';
 
 /** Provider-independent transcript result; the session adds sessionId and sequence. */
 export type ProviderTranscript = {
@@ -9,12 +13,7 @@ export type ProviderTranscript = {
   words?: TranscriptWord[];
 };
 
-export type AudioFormat = {
-  encoding: 'linear16';
-  sampleRate: number;
-  channels: 1;
-  language: string;
-};
+export type AudioFormat = ClientAudioFormat & { language: string };
 
 export type AsrCallbacks = {
   onOpen: () => void;

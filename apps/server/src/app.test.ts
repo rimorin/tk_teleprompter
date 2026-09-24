@@ -290,6 +290,30 @@ describe('session websocket', () => {
     expect(received.map((b) => b[0])).toEqual([1, 2]);
   });
 
+  it('relays Opus chunks of any length, in order, without PCM parameters', async () => {
+    const { upstream, wsUrl } = await setup();
+    const client = await connectClient(wsUrl);
+    client.ws.send(
+      JSON.stringify({
+        type: 'session.start',
+        v: PROTOCOL_VERSION,
+        language: 'en',
+        audio: { encoding: 'opus', container: 'webm' },
+      }),
+    );
+    client.ws.send(Buffer.alloc(333, 1)); // odd length: fine for compressed audio
+    client.ws.send(Buffer.alloc(101, 2));
+    await until(() => (upstream.connections[0]?.received.length ?? 0) >= 2, 'opus chunks');
+    const conn = upstream.connections[0]!;
+    expect((conn.received as Buffer[]).map((b) => [b[0], b.length])).toEqual([
+      [1, 333],
+      [2, 101],
+    ]);
+    const params = new URL(conn.req.url!, 'ws://x').searchParams;
+    expect(params.has('encoding')).toBe(false);
+    expect(params.has('sample_rate')).toBe(false);
+  });
+
   it('fails fast with a safe error when no API key is configured', async () => {
     const { upstream, wsUrl } = await setup({ DEEPGRAM_API_KEY: '' });
     const client = await connectClient(wsUrl);

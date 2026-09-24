@@ -1,4 +1,9 @@
-import { AUDIO_FRAME_MS, AUDIO_SAMPLE_RATE } from '@teleprompter/shared';
+import {
+  AUDIO_FRAME_MS,
+  AUDIO_SAMPLE_RATE,
+  OPUS_BITS_PER_SECOND,
+  type AudioFormat,
+} from '@teleprompter/shared';
 import workletUrl from './pcm-worklet.ts?worker&url';
 
 type MicErrorCode =
@@ -27,9 +32,27 @@ export class MicError extends Error {
 
 export type MicCapture = { stop: () => Promise<void> };
 
+const OPUS_TYPES = [
+  { mimeType: 'audio/webm;codecs=opus', container: 'webm' },
+  { mimeType: 'audio/ogg;codecs=opus', container: 'ogg' },
+] as const;
+
+/**
+ * The format to capture in: Opus (about 8x less upload than PCM, which matters on mobile data)
+ * when the browser can record it, otherwise 16 kHz PCM.
+ */
+export function pickAudioFormat(): AudioFormat {
+  if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+    const opus = OPUS_TYPES.find((t) => MediaRecorder.isTypeSupported(t.mimeType));
+    if (opus) return { encoding: 'opus', container: opus.container };
+  }
+  return { encoding: 'linear16', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 };
+}
+
 type Handlers = {
-  /** One 100 ms frame of mono 16 kHz PCM16 (little-endian). */
-  onChunk: (pcm: ArrayBuffer) => void;
+  format: AudioFormat;
+  /** One ~100 ms chunk: mono 16 kHz PCM16 (little-endian), or the next piece of the Opus stream. */
+  onChunk: (chunk: ArrayBuffer) => void;
   /** The device went away (unplugged, permission revoked). Capture has stopped. */
   onEnded: () => void;
 };
@@ -45,12 +68,15 @@ function toMicError(err: unknown): MicError {
 }
 
 /**
- * Start capturing the microphone. Must be called from a user gesture. Audio runs through an
- * AudioWorklet that downmixes and resamples from the device rate to 16 kHz PCM16.
+ * Start capturing the microphone in `format` (see pickAudioFormat). Must be called from a user
+ * gesture.
  */
-export async function startMicCapture({ onChunk, onEnded }: Handlers): Promise<MicCapture> {
+export async function startMicCapture({ format, onChunk, onEnded }: Handlers): Promise<MicCapture> {
   if (!window.isSecureContext) throw new MicError('insecure_context');
-  if (!navigator.mediaDevices?.getUserMedia || typeof AudioWorkletNode === 'undefined') {
+  if (
+    !navigator.mediaDevices?.getUserMedia ||
+    (format.encoding === 'linear16' && typeof AudioWorkletNode === 'undefined')
+  ) {
     throw new MicError('unsupported');
   }
   let stream: MediaStream;
@@ -67,6 +93,62 @@ export async function startMicCapture({ onChunk, onEnded }: Handlers): Promise<M
     throw toMicError(err);
   }
 
+  const capture =
+    format.encoding === 'linear16'
+      ? await startPcm(stream, onChunk)
+      : startOpus(stream, format.container, onChunk);
+  for (const track of stream.getAudioTracks()) {
+    track.addEventListener('ended', () => {
+      void capture.stop();
+      onEnded();
+    });
+  }
+  return capture;
+}
+
+/** Records Opus with MediaRecorder; chunks are delivered strictly in order. */
+function startOpus(
+  stream: MediaStream,
+  container: 'webm' | 'ogg',
+  onChunk: (chunk: ArrayBuffer) => void,
+): MicCapture {
+  let recorder: MediaRecorder;
+  try {
+    recorder = new MediaRecorder(stream, {
+      mimeType: OPUS_TYPES.find((t) => t.container === container)!.mimeType,
+      audioBitsPerSecond: OPUS_BITS_PER_SECOND,
+    });
+  } catch {
+    for (const track of stream.getTracks()) track.stop();
+    throw new MicError('unsupported');
+  }
+  // Blob.arrayBuffer() is async: chain reads so chunks can't overtake each other.
+  let delivered = Promise.resolve();
+  recorder.ondataavailable = (e) => {
+    if (!e.data.size) return;
+    delivered = delivered.then(() => e.data.arrayBuffer()).then(onChunk, () => {});
+  };
+  const stopped = new Promise<void>((resolve) => (recorder.onstop = () => resolve()));
+  recorder.start(AUDIO_FRAME_MS);
+  let stopping: Promise<void> | null = null;
+  const stop = () => {
+    // Stopping flushes a last chunk; wait for it so the final words are sent.
+    stopping ??= (async () => {
+      if (recorder.state !== 'inactive') recorder.stop();
+      await stopped;
+      await delivered;
+      for (const track of stream.getTracks()) track.stop();
+    })();
+    return stopping;
+  };
+  return { stop };
+}
+
+/** Captures through an AudioWorklet that downmixes and resamples to 16 kHz PCM16. */
+async function startPcm(
+  stream: MediaStream,
+  onChunk: (chunk: ArrayBuffer) => void,
+): Promise<MicCapture> {
   const ctx = new AudioContext();
   let stopped = false;
   const stop = async () => {
@@ -104,14 +186,6 @@ export async function startMicCapture({ onChunk, onEnded }: Handlers): Promise<M
   } catch {
     await stop();
     throw new MicError('unsupported');
-  }
-
-  for (const track of stream.getAudioTracks()) {
-    track.addEventListener('ended', () => {
-      if (stopped) return;
-      void stop();
-      onEnded();
-    });
   }
   return { stop };
 }
