@@ -20,21 +20,29 @@ export function StatusPill({
   status,
   source,
   connecting = false,
+  reconnecting = false,
 }: {
   status: TrackingStatus;
   source: Source;
   /** Microphone/session is starting up. */
   connecting?: boolean;
+  /** The connection dropped and a new session is being attempted. */
+  reconnecting?: boolean;
 }) {
   let label = LABELS[status];
-  if (connecting) label = 'Connecting…';
+  if (reconnecting) label = 'Reconnecting…';
+  else if (connecting) label = 'Connecting…';
   else if (status === 'tracking' && source === 'simulation') label = 'Following (simulated)';
   else if (status === 'tracking' && source === 'microphone') label = 'Listening';
-  const hint = connecting ? undefined : HINTS[status];
+  const hint = reconnecting
+    ? 'Keep going — manual control still works.'
+    : connecting
+      ? undefined
+      : HINTS[status];
   return (
     <span
       className="status"
-      data-status={connecting ? 'connecting' : status}
+      data-status={connecting || reconnecting ? 'connecting' : status}
       role="status"
       aria-live="polite"
     >

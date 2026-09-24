@@ -173,7 +173,9 @@ export function PresenterView({
   useEffect(() => () => simRef.current?.stop(), []);
 
   const live = useLiveSession({
-    onListening: () => setTracking(startTracking),
+    // A reconnect keeps a paused session paused.
+    onListening: () => setTracking((s) => (s.status === 'paused' ? s : startTracking(s))),
+    onReconnecting: () => setTracking((s) => (s.status === 'paused' ? s : markDisconnected(s))),
     onTranscript: (ev) => setTracking((s) => update(ctx, s, ev)),
     onInterrupted: () => {
       setSource('none');
@@ -255,6 +257,7 @@ export function PresenterView({
   const finished =
     script.tokens.length > 0 && tracking.confirmedTokenId === script.tokens.length - 1;
   const connecting = micOn && (live.phase === 'starting' || live.phase === 'connecting');
+  const reconnecting = micOn && live.phase === 'reconnecting';
   const paused = tracking.status === 'paused';
   // Fade controls away (mouse devices only) while tracking runs normally. Anything needing
   // attention — paused, lost place, disconnected, errors — keeps them visible.
@@ -298,7 +301,12 @@ export function PresenterView({
         <span className="script-title" title={title}>
           {title}…
         </span>
-        <StatusPill status={tracking.status} source={source} connecting={connecting} />
+        <StatusPill
+          status={tracking.status}
+          source={source}
+          connecting={connecting}
+          reconnecting={reconnecting}
+        />
         <span
           className="para-count"
           aria-label={`Paragraph ${paragraphIndex + 1} of ${script.paragraphs.length}`}

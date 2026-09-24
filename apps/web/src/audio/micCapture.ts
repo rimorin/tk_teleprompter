@@ -30,7 +30,14 @@ export class MicError extends Error {
   }
 }
 
-export type MicCapture = { stop: () => Promise<void> };
+export type MicCapture = {
+  stop: () => Promise<void>;
+  /**
+   * Begin a fresh stream for a new session. Opus restarts its recorder so the new session gets
+   * its own container header (leftover chunks of the old one are dropped); PCM needs nothing.
+   */
+  restart: () => void;
+};
 
 const OPUS_TYPES = [
   { mimeType: 'audio/webm;codecs=opus', container: 'webm' },
@@ -112,36 +119,52 @@ function startOpus(
   container: 'webm' | 'ogg',
   onChunk: (chunk: ArrayBuffer) => void,
 ): MicCapture {
-  let recorder: MediaRecorder;
+  const mimeType = OPUS_TYPES.find((t) => t.container === container)!.mimeType;
+  let recorder: MediaRecorder | null = null;
+  let stopped = Promise.resolve();
+  // Blob.arrayBuffer() is async: chain reads so chunks can't overtake each other.
+  let delivered = Promise.resolve();
+  const begin = () => {
+    const r = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: OPUS_BITS_PER_SECOND });
+    r.ondataavailable = (e) => {
+      if (!e.data.size) return;
+      delivered = delivered
+        .then(() => e.data.arrayBuffer())
+        // Checked on delivery: chunks of a replaced recorder belong to the old session.
+        .then((chunk) => {
+          if (r === recorder) onChunk(chunk);
+        })
+        .catch(() => {});
+    };
+    stopped = new Promise<void>((resolve) => (r.onstop = () => resolve()));
+    r.start(AUDIO_FRAME_MS);
+    recorder = r;
+  };
   try {
-    recorder = new MediaRecorder(stream, {
-      mimeType: OPUS_TYPES.find((t) => t.container === container)!.mimeType,
-      audioBitsPerSecond: OPUS_BITS_PER_SECOND,
-    });
+    begin();
   } catch {
     for (const track of stream.getTracks()) track.stop();
     throw new MicError('unsupported');
   }
-  // Blob.arrayBuffer() is async: chain reads so chunks can't overtake each other.
-  let delivered = Promise.resolve();
-  recorder.ondataavailable = (e) => {
-    if (!e.data.size) return;
-    delivered = delivered.then(() => e.data.arrayBuffer()).then(onChunk, () => {});
-  };
-  const stopped = new Promise<void>((resolve) => (recorder.onstop = () => resolve()));
-  recorder.start(AUDIO_FRAME_MS);
   let stopping: Promise<void> | null = null;
   const stop = () => {
     // Stopping flushes a last chunk; wait for it so the final words are sent.
     stopping ??= (async () => {
-      if (recorder.state !== 'inactive') recorder.stop();
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
       await stopped;
       await delivered;
       for (const track of stream.getTracks()) track.stop();
     })();
     return stopping;
   };
-  return { stop };
+  const restart = () => {
+    if (stopping) return;
+    const old = recorder;
+    recorder = null;
+    if (old && old.state !== 'inactive') old.stop();
+    begin();
+  };
+  return { stop, restart };
 }
 
 /** Captures through an AudioWorklet that downmixes and resamples to 16 kHz PCM16. */
@@ -187,5 +210,5 @@ async function startPcm(
     await stop();
     throw new MicError('unsupported');
   }
-  return { stop };
+  return { stop, restart: () => {} };
 }

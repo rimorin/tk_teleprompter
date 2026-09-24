@@ -96,7 +96,8 @@ Nobody reads a talk word for word. The app is built for that.
 | **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes. |
 | **Skip** a sentence or a section  | jumps ahead, but only when it is sure.                               |
 | **Repeat** a line for effect      | never jumps backward by itself.                                      |
-| **Lose the network** or the mic   | stops where you are and tells you. The buttons always still work.    |
+| **Lose the network**              | reconnects by itself and carries on. The buttons always still work.  |
+| **Lose the mic**                  | stops where you are and tells you.                                   |
 
 > [!NOTE]
 > A common phrase like "thank you very much" can appear in many places. On its own, it is never
@@ -373,15 +374,16 @@ Server settings (API key, access code, limits, allowed origins) are explained in
   and a tap always puts you back on track.
 - **On iPhone and iPad, switching apps or locking the screen stops the microphone.** Start it
   again when you come back. (The app keeps the screen on while you present to help with this.)
-- **On a very slow network,** the voice session stops and tells you, instead of falling further
-  and further behind. Manual control keeps working.
+- **When the network drops,** it keeps the microphone on and reconnects by itself for about 40
+  seconds. Words you say while it is offline are missed, so the script may need a moment to catch
+  up. If it can't reconnect, it stops and tells you. Manual control keeps working.
 - **Testing so far:** automated tests, emulated phones and tablets (WebKit and Chromium), and live
   use on a laptop. More testing on real devices is under way.
 - PDF import is not supported yet. Use `.txt` or `.docx`.
 
 ## 🗺️ Roadmap
 
-- Reconnect by itself after the network drops, and show the microphone level
+- Show the microphone level
 - Stage directions like `[PAUSE]` or `[SLIDE 5]` that are shown but not read
 - Presets for webcams, teleprompter glass and reading distance
 - PDF import and more languages
