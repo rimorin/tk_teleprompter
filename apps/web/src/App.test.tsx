@@ -47,10 +47,22 @@ describe('App (manual mode)', () => {
     expect(screen.getByText(/tap the mic and speak/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start presenting/i })).toBeDisabled();
     expect(screen.getByText('Add a script to start.')).toBeInTheDocument();
-    // The about section explains the problem and the solution.
-    const about = screen.getByRole('region', { name: 'Why this app' });
-    expect(within(about).getByRole('heading', { name: /the problem/i })).toBeInTheDocument();
-    expect(within(about).getByRole('heading', { name: /the solution/i })).toBeInTheDocument();
+    // About lives behind a header button, not on the page.
+    expect(screen.queryByRole('region', { name: 'Why this app' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'About' }));
+    const about = within(screen.getByRole('dialog', { name: 'About this app' }));
+    for (const heading of [
+      /the problem/i,
+      /the solution/i,
+      /how it follows you/i,
+      /reading the screen/i,
+      /go to plan/i,
+      /privacy/i,
+    ]) {
+      expect(about.getByRole('heading', { name: heading })).toBeInTheDocument();
+    }
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'About this app' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /try the sample/i }));
     expect(screen.queryByText('Paste your talk here')).not.toBeInTheDocument();

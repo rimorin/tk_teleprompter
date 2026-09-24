@@ -6,13 +6,15 @@ type Props = {
   label: string;
   onClose: () => void;
   children: ReactNode;
+  /** Taller on phones and centred on larger screens, for reading (not adjusting) content. */
+  wide?: boolean;
 };
 
 /**
  * Modal panel: a bottom sheet on phones (within thumb reach), a floating panel above the dock on
  * larger screens. Closes on backdrop tap, the close button, or Escape.
  */
-export function Sheet({ label, onClose, children }: Props) {
+export function Sheet({ label, onClose, children, wide = false }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   useEscapeKey(onClose);
   // Focus the panel while open, then give focus back to whatever opened it.
@@ -24,6 +26,7 @@ export function Sheet({ label, onClose, children }: Props) {
   return (
     <div
       className="sheet-backdrop"
+      data-wide={wide || undefined}
       onPointerDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

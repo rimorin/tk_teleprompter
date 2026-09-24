@@ -488,6 +488,18 @@ input[type='range']::-moz-range-thumb {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.about-btn {
+  padding: 0 0.7rem;
+}
+/* Wide sheet (About): nearly full height on phones, a centred reading panel on larger screens. */
+.sheet-backdrop[data-wide] .sheet {
+  max-height: 92dvh;
+}
 .sheet-body > * + * {
   border-top: 1px solid var(--border);
 }
@@ -522,6 +534,16 @@ input[type='range']::-moz-range-thumb {
   }
   .sheet-head {
     padding-top: 0.5rem;
+  }
+  .sheet-backdrop[data-wide] {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .sheet-backdrop[data-wide] .sheet {
+    width: min(920px, 100%);
+    max-height: min(88dvh, 900px);
   }
 }
 @keyframes pop-in {
@@ -656,14 +678,19 @@ input[type='range']::-moz-range-thumb {
 }
 /* About: the problem and the solution, side by side on wider screens. */
 .about {
-  margin-top: 2rem;
+  padding: 0.25rem var(--gutter) 1.5rem;
 }
-.about h2 {
-  margin: 0;
-  font-size: 1.15rem;
+.about-lead {
+  margin: 0 0 1rem;
+  color: var(--fg-muted);
 }
-.about > p {
-  margin: 0.3rem 0 0.9rem;
+/* Inside the sheet (itself --bg-elev), cards sit on the page colour to stand out. */
+.about .card,
+.about .flow-step {
+  background: var(--bg);
+}
+.about .pnode {
+  background: var(--bg-elev);
 }
 .about-grid {
   display: grid;
@@ -691,12 +718,317 @@ input[type='range']::-moz-range-thumb {
     grid-template-columns: 1fr 1fr;
   }
 }
+.about-heading {
+  margin: 1.75rem 0 0.7rem;
+  font-size: 1rem;
+}
+
+/* How it follows you: a flow of four steps, top to bottom on phones. */
+.flow {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.flow-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.8rem;
+  align-items: center;
+  margin-bottom: 1.6rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.flow-step:last-child {
+  margin-bottom: 0;
+  border-color: var(--accent);
+}
+.flow-icon {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.flow-title {
+  font-weight: 600;
+}
+.flow-text {
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
+.flow-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -1.45rem;
+  display: flex;
+  color: var(--fg-muted);
+  transform: translateX(-50%);
+}
+.arrow-wide {
+  display: none;
+}
+
+/* Reading the screen: a sample line styled like the presenter, with a legend. */
+.screen-demo {
+  padding: 1rem 1.1rem;
+}
+.demo-line {
+  position: relative;
+  margin: 0 0 1rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 10px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--accent-soft) 10%,
+    var(--accent-soft) 90%,
+    transparent
+  );
+  font-size: 1.3rem;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.demo-line::before,
+.demo-line::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  border: 6px solid transparent;
+  transform: translateY(-50%);
+}
+.demo-line::before {
+  left: 0;
+  border-left: 8px solid var(--accent);
+}
+.demo-line::after {
+  right: 0;
+  border-right: 8px solid var(--accent);
+}
+.demo-spoken {
+  color: var(--fg-spoken);
+}
+.demo-heard {
+  color: var(--fg-tentative);
+  text-shadow: 0 0 0.4em color-mix(in srgb, var(--glow) 45%, transparent);
+}
+.demo-next {
+  padding: 0 0.14em;
+  border-radius: 0.28em;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow:
+    inset 0 -0.08em 0 var(--accent),
+    0 0 0.9em color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.legend {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+.legend dt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.legend dd {
+  margin: 0.1rem 0 0 1.4rem;
+  color: var(--fg-muted);
+  font-size: 0.88rem;
+}
+.swatch {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 4px;
+}
+.swatch[data-kind='spoken'] {
+  background: var(--fg-spoken);
+}
+.swatch[data-kind='heard'] {
+  background: var(--fg-tentative);
+  box-shadow: 0 0 0.5em var(--glow);
+}
+.swatch[data-kind='next'] {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.swatch[data-kind='line'] {
+  background: linear-gradient(90deg, var(--accent) 0 3px, var(--accent-soft) 3px);
+}
+
+/* When the talk doesn't go to plan. */
+.off-script {
+  display: grid;
+  margin: 0;
+  padding: 0.3rem 1rem;
+  list-style: none;
+}
+.off-script li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  color: var(--fg-muted);
+}
+.off-script li + li {
+  border-top: 1px solid var(--border);
+}
+.off-script strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.off-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Privacy: where things go. */
+.privacy-map {
+  padding: 1rem 1.1rem;
+}
+.privacy-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.pnode {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  text-align: center;
+}
+.pnode > svg {
+  color: var(--accent);
+}
+.pnode > span {
+  font-weight: 600;
+}
+.pnode > small {
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+.pnode[data-kind='device'] {
+  border-color: var(--accent);
+}
+.pline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.3rem 0;
+  color: var(--fg-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+.pline::after {
+  content: '⇅';
+  font-size: 1rem;
+  line-height: 1;
+}
+.privacy-points {
+  display: grid;
+  gap: 0.45rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+}
+.privacy-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.privacy-points svg {
+  flex: none;
+  margin-top: 0.15em;
+  color: var(--accent);
+}
+
+@media (min-width: 640px) {
+  .legend {
+    grid-template-columns: 1fr 1fr;
+  }
+  .privacy-flow {
+    flex-direction: row;
+    align-items: center;
+  }
+  .pnode {
+    flex: 1;
+  }
+  .pline {
+    flex: 0 1 8.5rem;
+    padding: 0 0.4rem;
+  }
+  .pline::after {
+    content: '⇄';
+  }
+}
+@media (min-width: 768px) {
+  .flow {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.9rem;
+  }
+  .flow-step {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    row-gap: 0.3rem;
+    margin-bottom: 0;
+    padding: 1rem 0.8rem;
+    text-align: center;
+  }
+  .flow-icon {
+    grid-row: auto;
+  }
+  .flow-arrow {
+    top: 50%;
+    left: auto;
+    right: -1.55rem;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+  .arrow-wide {
+    display: block;
+  }
+  .arrow-narrow {
+    display: none;
+  }
+}
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+/* The smallest phones have no room for the name beside the header buttons: keep the logo. */
+@media (max-width: 359px) {
+  .brand h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 .brand {
   display: flex;

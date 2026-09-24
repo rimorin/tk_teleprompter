@@ -2,7 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
-  Lightbulb,
+  Info,
   Loader2,
   Mic,
   Moon,
@@ -31,6 +31,8 @@ import { Segmented } from '../ui/controls';
 import { ACCEPTED_FILE_TYPES, checkScriptLength, ImportError, readScriptFile } from './importFile';
 import { loadAccessCode, saveAccessCode } from '../live/accessCode';
 import { useServerStatus, type ServerStatus } from './useServerStatus';
+import { About } from './About';
+import { Sheet } from '../ui/Sheet';
 
 type Props = {
   text: string;
@@ -82,6 +84,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const [importError, setImportError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const textareaId = useId();
   const deferredText = useDeferredValue(text);
   const preview = useMemo(() => parseScript(deferredText), [deferredText]);
@@ -134,15 +137,25 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <p className="muted small">A script that follows your voice.</p>
           </div>
         </div>
-        <Segmented
-          label="Theme"
-          value={theme}
-          onChange={onThemeChange}
-          options={[
-            { value: 'dark', label: <Moon size={15} aria-label="Dark" />, title: 'Dark' },
-            { value: 'light', label: <Sun size={15} aria-label="Light" />, title: 'Light' },
-          ]}
-        />
+        <div className="header-actions">
+          <button
+            type="button"
+            className="btn ghost about-btn"
+            onClick={() => setAboutOpen(true)}
+            aria-haspopup="dialog"
+          >
+            <Info size={16} aria-hidden /> About
+          </button>
+          <Segmented
+            label="Theme"
+            value={theme}
+            onChange={onThemeChange}
+            options={[
+              { value: 'dark', label: <Moon size={15} aria-label="Dark" />, title: 'Dark' },
+              { value: 'light', label: <Sun size={15} aria-label="Light" />, title: 'Light' },
+            ]}
+          />
+        </div>
       </header>
 
       <main className="setup-grid">
@@ -366,42 +379,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
         </aside>
       </main>
 
-      <About />
+      {aboutOpen && (
+        <Sheet label="About this app" onClose={() => setAboutOpen(false)} wide>
+          <About />
+        </Sheet>
+      )}
     </div>
-  );
-}
-
-/** Why the app exists, in a few plain sentences for speakers. */
-function About() {
-  return (
-    <section className="about" aria-labelledby="about-title">
-      <h2 id="about-title">Why this app</h2>
-      <p className="muted">A teleprompter that listens, so you can look at your audience.</p>
-      <div className="about-grid">
-        <div className="card about-card" data-kind="problem">
-          <h3 className="card-title">
-            <AlertCircle size={17} aria-hidden /> The problem
-          </h3>
-          <ul>
-            <li>
-              Notes on a phone or tablet need scrolling. Every swipe takes your eyes off the room.
-            </li>
-            <li>
-              When you look up to connect, you come back to a wall of text and lose your place.
-            </li>
-          </ul>
-        </div>
-        <div className="card about-card" data-kind="solution">
-          <h3 className="card-title">
-            <Lightbulb size={17} aria-hidden /> The solution
-          </h3>
-          <ul>
-            <li>It listens as you speak and keeps your line at eye level. No scrolling.</li>
-            <li>Look up, pause or tell a story. When you look back down, your place is waiting.</li>
-            <li>Went somewhere else? Tap any word, and the script goes there.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
   );
 }
