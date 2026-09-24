@@ -22,6 +22,9 @@ describe('App (manual mode)', () => {
     const scroller = screen.getByTestId('scroller');
     expect(within(scroller).getByText('Alpha')).toBeInTheDocument();
     expect(tokenClass('Alpha')).toContain('next');
+    // One marker glides behind the next word.
+    expect(document.querySelectorAll('.focus-marker')).toHaveLength(1);
+    expect(document.querySelector('.focus-marker')).not.toHaveAttribute('hidden');
 
     await user.click(screen.getByRole('button', { name: 'Next paragraph' }));
     expect(tokenClass('Delta')).toContain('next');

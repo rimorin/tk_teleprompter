@@ -1,4 +1,4 @@
-import { memo, type MouseEvent, type ReactNode } from 'react';
+import { memo, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import type { Paragraph, ParsedScript } from '@teleprompter/shared';
 
 type ParagraphViewProps = {
@@ -55,6 +55,52 @@ type ScriptDisplayProps = {
   onReposition: (tokenId: number) => void;
 };
 
+/** Moves farther than this many lines snap instead of gliding (e.g. a tap far away). */
+const GLIDE_MAX_LINES = 3;
+
+/**
+ * One marker behind the next word that glides from word to word, instead of the highlight
+ * jumping. Positioned from the token's layout box; re-measured when the layout changes.
+ */
+function useFocusMarker(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  markerRef: React.RefObject<HTMLDivElement | null>,
+  tokenId: number | null,
+) {
+  const lastTop = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const marker = markerRef.current;
+    if (!container || !marker) return;
+    const place = (glide: boolean) => {
+      const token =
+        tokenId === null ? null : container.querySelector<HTMLElement>(`[data-tid="${tokenId}"]`);
+      if (!token) {
+        marker.hidden = true;
+        lastTop.current = null;
+        return;
+      }
+      const lineHeight = parseFloat(getComputedStyle(token).lineHeight) || token.offsetHeight;
+      const far =
+        lastTop.current === null ||
+        Math.abs(token.offsetTop - lastTop.current) > GLIDE_MAX_LINES * lineHeight;
+      if (glide && !far) delete marker.dataset.instant;
+      else marker.dataset.instant = '';
+      marker.hidden = false;
+      marker.style.transform = `translate(${token.offsetLeft}px, ${token.offsetTop}px)`;
+      marker.style.width = `${token.offsetWidth}px`;
+      marker.style.height = `${token.offsetHeight}px`;
+      lastTop.current = token.offsetTop;
+    };
+    place(true);
+    // Font size, column width, rotation…: follow the word without animating.
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => place(false));
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef, markerRef, tokenId]);
+}
+
 function clampTo(value: number, p: Paragraph): number {
   return Math.min(p.lastTokenId, Math.max(p.firstTokenId - 1, value));
 }
@@ -68,6 +114,9 @@ export function ScriptDisplay({
 }: ScriptDisplayProps) {
   const confirmed = confirmedTokenId ?? -1;
   const tentative = Math.max(confirmed, tentativeTokenId ?? -1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const markerRef = useRef<HTMLDivElement>(null);
+  useFocusMarker(containerRef, markerRef, nextTokenId);
 
   function handleClick(e: MouseEvent<HTMLDivElement>) {
     if (window.getSelection()?.toString()) return;
@@ -79,7 +128,8 @@ export function ScriptDisplay({
   }
 
   return (
-    <div className="script" onClick={handleClick}>
+    <div ref={containerRef} className="script" onClick={handleClick}>
+      <div ref={markerRef} className="focus-marker" aria-hidden hidden />
       {script.paragraphs.map((p) => (
         <ParagraphView
           key={p.id}

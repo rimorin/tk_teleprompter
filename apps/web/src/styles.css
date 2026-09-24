@@ -22,6 +22,7 @@
 }
 
 [data-theme='dark'] {
+  --glow: rgba(255, 196, 92, 0.55);
   color-scheme: dark;
   --bg: #0c0d10;
   --bg-elev: #15171b;
@@ -44,6 +45,7 @@
 }
 
 [data-theme='light'] {
+  --glow: rgba(214, 140, 0, 0.3);
   color-scheme: light;
   --bg: #f7f6f2;
   --bg-elev: #ffffff;
@@ -66,6 +68,7 @@
 }
 
 [data-theme='contrast'] {
+  --glow: transparent;
   color-scheme: dark;
   --bg: #000000;
   --bg-elev: #0a0a0a;
@@ -1393,10 +1396,16 @@ input[type='range']::-moz-range-thumb {
   overflow-wrap: break-word;
   cursor: pointer;
 }
+/* The script: words ease from bright (to read) to warm (heard) to dim (said). */
+.script {
+  position: relative;
+  isolation: isolate; /* keeps the marker (z-index -1) just behind the words */
+}
 .tok {
   border-radius: 0.12em;
   transition:
-    color 0.35s var(--ease),
+    color 0.6s var(--ease),
+    text-shadow 0.6s var(--ease),
     background-color 0.2s;
 }
 .tok.spoken {
@@ -1404,12 +1413,50 @@ input[type='range']::-moz-range-thumb {
 }
 .tok.tentative {
   color: var(--fg-tentative);
+  text-shadow: 0 0 0.4em color-mix(in srgb, var(--glow) 45%, transparent);
+  animation: heard 0.7s var(--ease);
 }
-.tok.next {
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-  text-decoration-thickness: 0.07em;
-  text-underline-offset: 0.2em;
+/* A word lights up as it is recognized, then settles. */
+@keyframes heard {
+  from {
+    color: var(--fg);
+    text-shadow: 0 0 0.6em var(--glow);
+  }
+}
+/* Glides behind the next word (see ScriptDisplay). */
+.focus-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  margin: 0 -0.14em;
+  padding: 0 0.14em;
+  box-sizing: content-box;
+  border-radius: 0.28em;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0.9em color-mix(in srgb, var(--accent) 22%, transparent);
+  pointer-events: none;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.focus-marker::after {
+  content: '';
+  position: absolute;
+  left: 0.14em;
+  right: 0.14em;
+  bottom: -0.08em;
+  height: 0.07em;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.focus-marker[data-instant] {
+  transition: none;
+}
+.focus-marker[hidden] {
+  display: none;
 }
 /* Touch feedback when tapping a word to jump there. */
 .tok:active {
