@@ -112,7 +112,7 @@ Nobody reads a talk word for word. The app is built for that.
 **🎤 Made for the stage**
 
 - Large text. Change the size, line spacing, column width and font.
-- Dark, light and high-contrast themes.
+- Dark and light themes.
 - Mirrored text for teleprompter glass.
 - Move the reading line. By default it sits near the top, close to your camera.
 - Smooth scrolling that ignores tiny moves and respects "reduce motion".

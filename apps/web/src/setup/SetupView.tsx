@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   CheckCircle2,
-  Contrast,
   FileText,
   Lightbulb,
   Loader2,
@@ -142,11 +141,6 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           options={[
             { value: 'dark', label: <Moon size={15} aria-label="Dark" />, title: 'Dark' },
             { value: 'light', label: <Sun size={15} aria-label="Light" />, title: 'Light' },
-            {
-              value: 'contrast',
-              label: <Contrast size={15} aria-label="High contrast" />,
-              title: 'High contrast',
-            },
           ]}
         />
       </header>

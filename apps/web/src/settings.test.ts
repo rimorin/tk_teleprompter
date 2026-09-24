@@ -16,5 +16,7 @@ describe('settings', () => {
       readingZone: 0.25,
     });
     expect(sanitizeSettings({ theme: 'neon' as never }, phone).theme).toBe('dark');
+    // The high-contrast theme was removed; a saved choice falls back to the default.
+    expect(sanitizeSettings({ theme: 'contrast' as never }, phone).theme).toBe('dark');
   });
 });

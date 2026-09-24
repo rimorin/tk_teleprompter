@@ -1,4 +1,4 @@
-import { Contrast, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { SETTINGS_LIMITS, type PresenterSettings } from '../settings';
 import { Segmented, Slider, Switch } from '../ui/controls';
 
@@ -32,15 +32,6 @@ export function DisplayPanel({ settings, onChange }: Props) {
                 <Sun size={15} aria-hidden /> Light
               </>
             ),
-          },
-          {
-            value: 'contrast',
-            label: (
-              <>
-                <Contrast size={15} aria-hidden /> Contrast
-              </>
-            ),
-            title: 'High contrast',
           },
         ]}
       />
