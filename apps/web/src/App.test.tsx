@@ -70,6 +70,47 @@ describe('App (manual mode)', () => {
     expect(screen.queryByText('Add a script to start.')).not.toBeInTheDocument();
   });
 
+  it('pastes from the clipboard: fills an empty script, then adds a new paragraph', async () => {
+    const user = userEvent.setup();
+    // user-event installs its own clipboard; replace it with one we control.
+    const readText = vi.fn(async () => 'Hello from my notes.');
+    Object.defineProperty(navigator, 'clipboard', { value: { readText }, configurable: true });
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Paste' }));
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('Hello from my notes.');
+
+    readText.mockResolvedValueOnce('Second part.');
+    await user.click(screen.getByRole('button', { name: 'Paste' }));
+    expect(textarea.value).toBe('Hello from my notes.\n\nSecond part.');
+
+    readText.mockRejectedValueOnce(new Error('denied'));
+    await user.click(screen.getByRole('button', { name: 'Paste' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/did not allow reading the clipboard/i);
+    expect(textarea.value).toBe('Hello from my notes.\n\nSecond part.');
+  });
+
+  it('pastes at the cursor once the speaker has clicked into the script', async () => {
+    const user = userEvent.setup();
+    const readText = vi.fn(async () => 'brave ');
+    Object.defineProperty(navigator, 'clipboard', { value: { readText }, configurable: true });
+    render(<App />);
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    await user.click(textarea);
+    await user.paste('Hello world.');
+    textarea.setSelectionRange(6, 6);
+    await user.click(screen.getByRole('button', { name: 'Paste' }));
+    expect(textarea.value).toBe('Hello brave world.');
+  });
+
+  it('hides Paste when the browser cannot read the clipboard', async () => {
+    userEvent.setup();
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    render(<App />);
+    expect(screen.queryByRole('button', { name: 'Paste' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /upload a file/i })).toBeInTheDocument();
+  });
+
   it('shows the presenter tip until it is closed, and remembers that', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<App />);

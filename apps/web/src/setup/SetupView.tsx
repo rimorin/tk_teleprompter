@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  ClipboardPaste,
   Info,
   Loader2,
   Lock,
@@ -83,6 +84,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   /** null = automatic: open when the server needs a code and none was saved on this device. */
   const [voiceOpen, setVoiceOpen] = useState<boolean | null>(null);
   const textareaId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  /** Whether the speaker has clicked or typed in the editor, so Paste knows the cursor counts. */
+  const editedRef = useRef(false);
+  const canReadClipboard =
+    typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
   const deferredText = useDeferredValue(text);
   const preview = useMemo(() => parseScript(deferredText), [deferredText]);
   const { status: serverStatus, codeRequired } = useServerStatus();
@@ -118,6 +124,47 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
     } finally {
       setImporting(false);
     }
+  }
+
+  /**
+   * Paste like the keyboard shortcut would: fill an empty script, insert at the cursor (or over
+   * the selection) once the editor has been used, otherwise add it at the end as a new paragraph.
+   */
+  async function pasteFromClipboard() {
+    setImportError(null);
+    let clip: string;
+    try {
+      clip = await navigator.clipboard.readText();
+    } catch {
+      setImportError(
+        'The browser did not allow reading the clipboard. Tap in the box and choose Paste instead.',
+      );
+      return;
+    }
+    if (!clip.trim()) {
+      setImportError('The clipboard is empty. Copy your script first.');
+      return;
+    }
+    const el = textareaRef.current;
+    let next: string;
+    let caret: number;
+    if (!text) {
+      next = clip;
+      caret = clip.length;
+    } else if (el && editedRef.current) {
+      next = text.slice(0, el.selectionStart) + clip + text.slice(el.selectionEnd);
+      caret = el.selectionStart + clip.length;
+    } else {
+      const sep = text.endsWith('\n\n') ? '' : text.endsWith('\n') ? '\n' : '\n\n';
+      next = text + sep + clip;
+      caret = next.length;
+    }
+    onTextChange(next);
+    // Put the cursor after the pasted text once React has rendered it.
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
   }
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
@@ -183,6 +230,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
       <main className="doc">
         <div className="doc-toolbar">
           <div className="card-actions" hidden={empty}>
+            {canReadClipboard && (
+              <button type="button" className="btn ghost" onClick={() => void pasteFromClipboard()}>
+                <ClipboardPaste size={15} aria-hidden /> Paste
+              </button>
+            )}
             <button
               type="button"
               className="btn ghost"
@@ -196,8 +248,15 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
               )}
               {importing ? 'Reading…' : 'Upload'}
             </button>
-            <button type="button" className="btn ghost" onClick={() => onTextChange(SAMPLE_SCRIPT)}>
-              <Sparkles size={15} aria-hidden /> Load sample
+            <button
+              type="button"
+              className="btn ghost"
+              aria-label="Load sample"
+              onClick={() => onTextChange(SAMPLE_SCRIPT)}
+            >
+              <Sparkles size={15} aria-hidden />
+              <span className="label-long">Load sample</span>
+              <span className="label-short">Sample</span>
             </button>
             <button
               type="button"
@@ -282,7 +341,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           onDrop={handleDrop}
         >
           <textarea
+            ref={textareaRef}
             id={textareaId}
+            // Only the speaker's own taps and keys count, not the focus Paste gives back.
+            onPointerDown={() => (editedRef.current = true)}
+            onKeyDown={() => (editedRef.current = true)}
             value={text}
             onChange={(e) => {
               setImportError(null);
@@ -295,9 +358,14 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <div className="empty-state" id={`${textareaId}-empty`}>
               <p className="empty-title">Paste your talk here</p>
               <p className="muted small">
-                Or upload a .txt or .docx file. Leave a blank line between paragraphs.
+                Tap Paste, or upload a .txt or .docx file. Leave a blank line between paragraphs.
               </p>
               <div className="empty-actions">
+                {canReadClipboard && (
+                  <button type="button" className="btn" onClick={() => void pasteFromClipboard()}>
+                    <ClipboardPaste size={15} aria-hidden /> Paste
+                  </button>
+                )}
                 <button type="button" className="btn" onClick={openFilePicker} disabled={importing}>
                   {importing ? (
                     <Loader2 size={15} className="spin" aria-hidden />

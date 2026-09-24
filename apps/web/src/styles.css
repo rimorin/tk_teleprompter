@@ -1247,10 +1247,25 @@ input[type='range']::-moz-range-thumb {
   gap: 0.25rem 0.5rem;
   min-height: var(--tap);
 }
-/* The file actions stay on one row; on narrow phones the voice chip moves below them. */
+/* The file actions stay on one row where they fit; the voice chip moves below them. */
 .doc-toolbar .card-actions {
-  flex-wrap: nowrap;
   margin: 0 0 0 -0.6rem;
+}
+@media (max-width: 359px) {
+  .doc-toolbar .card-actions .btn {
+    padding: 0 0.42rem;
+  }
+}
+.label-long {
+  display: none;
+}
+@media (min-width: 420px) {
+  .label-long {
+    display: inline;
+  }
+  .label-short {
+    display: none;
+  }
 }
 .voice-chip {
   display: inline-flex;
