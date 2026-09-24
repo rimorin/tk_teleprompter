@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Contrast,
   FileText,
+  Lightbulb,
   Loader2,
   Mic,
   Moon,
@@ -370,6 +371,43 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           )}
         </aside>
       </main>
+
+      <About />
     </div>
+  );
+}
+
+/** Why the app exists, in a few plain sentences for speakers. */
+function About() {
+  return (
+    <section className="about" aria-labelledby="about-title">
+      <h2 id="about-title">Why this app</h2>
+      <p className="muted">A teleprompter that listens, so you can look at your audience.</p>
+      <div className="about-grid">
+        <div className="card about-card" data-kind="problem">
+          <h3 className="card-title">
+            <AlertCircle size={17} aria-hidden /> The problem
+          </h3>
+          <ul>
+            <li>
+              Notes on a phone or tablet need scrolling. Every swipe takes your eyes off the room.
+            </li>
+            <li>
+              When you look up to connect, you come back to a wall of text and lose your place.
+            </li>
+          </ul>
+        </div>
+        <div className="card about-card" data-kind="solution">
+          <h3 className="card-title">
+            <Lightbulb size={17} aria-hidden /> The solution
+          </h3>
+          <ul>
+            <li>It listens as you speak and keeps your line at eye level. No scrolling.</li>
+            <li>Look up, pause or tell a story. When you look back down, your place is waiting.</li>
+            <li>Went somewhere else? Tap any word, and the script goes there.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }

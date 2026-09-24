@@ -674,6 +674,43 @@ input[type='range']::-moz-range-thumb {
   /* Room at the bottom for the fixed start bar on phones. */
   padding: calc(var(--safe-top) + 12px) var(--gutter) calc(150px + var(--safe-bottom));
 }
+/* About: the problem and the solution, side by side on wider screens. */
+.about {
+  margin-top: 2rem;
+}
+.about h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.about > p {
+  margin: 0.3rem 0 0.9rem;
+}
+.about-grid {
+  display: grid;
+  gap: 1rem;
+}
+.about-card h3 {
+  margin: 0 0 0.5rem;
+}
+.about-card[data-kind='problem'] h3 > svg {
+  color: var(--error);
+}
+.about-card[data-kind='solution'] h3 > svg {
+  color: var(--accent);
+}
+.about-card ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+@media (min-width: 640px) {
+  .about-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 .app-header {
   display: flex;
   align-items: center;
