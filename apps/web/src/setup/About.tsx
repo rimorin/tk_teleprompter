@@ -5,6 +5,9 @@ import {
   AudioLines,
   Compass,
   CornerDownRight,
+  Eye,
+  FastForward,
+  Hand,
   Lightbulb,
   Lock,
   Mic,
@@ -62,6 +65,35 @@ const OFF_SCRIPT: Array<{ icon: ReactNode; when: string; then: string }> = [
   },
 ];
 
+/** Line widths (%) for the two little screens in the problem and solution cards. */
+const NOTE_BARS = [92, 86, 95, 70, 90, 84, 96, 78, 88, 93];
+const PROMPTER_BARS: Array<[number, 'spoken' | 'current' | 'next']> = [
+  [60, 'spoken'],
+  [48, 'spoken'],
+  [90, 'current'],
+  [82, 'next'],
+  [58, 'next'],
+];
+
+/** What research and speaking coaches say about looking down at notes. */
+const FACTS: Array<{ icon: ReactNode; title: string; text: string }> = [
+  {
+    icon: <Eye size={16} aria-hidden />,
+    title: 'Eye contact builds trust.',
+    text: 'Audiences rate speakers who look at them as more skilled and honest.',
+  },
+  {
+    icon: <ArrowDown size={16} aria-hidden />,
+    title: 'Looking down looks unsure,',
+    text: 'even when you are not.',
+  },
+  {
+    icon: <FastForward size={16} aria-hidden />,
+    title: 'Auto-scroll does not wait.',
+    text: 'It keeps moving when you pause for a laugh or a question.',
+  },
+];
+
 /** Why the app exists and how it works, in plain words for speakers. */
 export function About() {
   return (
@@ -73,6 +105,14 @@ export function About() {
           <h3 className="card-title">
             <AlertCircle size={17} aria-hidden /> The problem
           </h3>
+          <div className="mock" data-kind="notes" aria-hidden>
+            {NOTE_BARS.map((width, i) => (
+              <span key={i} className="mock-bar" style={{ width: `${width}%` }} />
+            ))}
+            <span className="mock-tag">
+              <Hand size={14} /> Where was I?
+            </span>
+          </div>
           <ul>
             <li>
               Notes on a phone or tablet need scrolling. Every swipe takes your eyes off the room.
@@ -86,6 +126,23 @@ export function About() {
           <h3 className="card-title">
             <Lightbulb size={17} aria-hidden /> The solution
           </h3>
+          <div className="mock" data-kind="prompter" aria-hidden>
+            {PROMPTER_BARS.map(([width, state], i) => {
+              const bar = (
+                <span className="mock-bar" data-state={state} style={{ width: `${width}%` }} />
+              );
+              return state === 'current' ? (
+                <span key={i} className="mock-line">
+                  {bar}
+                </span>
+              ) : (
+                <span key={i}>{bar}</span>
+              );
+            })}
+            <span className="mock-tag">
+              <Mic size={14} /> Following you
+            </span>
+          </div>
           <ul>
             <li>It listens as you speak and keeps your line at eye level. No scrolling.</li>
             <li>Look up, pause or tell a story. When you look back down, your place is waiting.</li>
@@ -93,6 +150,18 @@ export function About() {
           </ul>
         </div>
       </div>
+
+      <h3 className="about-heading">Why it matters</h3>
+      <ul className="facts">
+        {FACTS.map((fact) => (
+          <li key={fact.title} className="card fact">
+            <span className="off-icon">{fact.icon}</span>
+            <span>
+              <strong>{fact.title}</strong> {fact.text}
+            </span>
+          </li>
+        ))}
+      </ul>
 
       <h3 className="about-heading">How it follows you</h3>
       <ol className="flow" aria-label="How voice following works">

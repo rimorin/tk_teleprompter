@@ -733,6 +733,124 @@ input[type='range']::-moz-range-thumb {
     grid-template-columns: 1fr 1fr;
   }
 }
+/* The little screens: a wall of notes vs. a script with your line held at eye level. */
+.mock {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  height: 118px;
+  margin-bottom: 0.85rem;
+  padding: 14px 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+.mock-bar {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--fg-muted);
+  opacity: 0.4;
+}
+.mock[data-kind='notes'] {
+  mask-image: linear-gradient(180deg, #000 70%, transparent);
+}
+.mock[data-kind='prompter'] {
+  align-content: center;
+  gap: 10px;
+}
+.mock-bar[data-state='spoken'] {
+  opacity: 0.15;
+}
+.mock-bar[data-state='current'] {
+  height: 9px;
+  background: var(--accent);
+  opacity: 1;
+  box-shadow: 0 0 12px var(--accent-soft);
+}
+/* The reading line: ◀ ▶ markers at the edges, like the presenter view. */
+.mock-line {
+  position: relative;
+  margin: 0 -18px;
+  padding: 4px 18px;
+  background: var(--accent-soft);
+}
+.mock-line::before,
+.mock-line::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  border: 5px solid transparent;
+  transform: translateY(-50%);
+}
+.mock-line::before {
+  left: 0;
+  border-left: 7px solid var(--accent);
+}
+.mock-line::after {
+  right: 0;
+  border-right: 7px solid var(--accent);
+}
+.mock > span:not(.mock-tag) {
+  display: block;
+}
+.mock > span > .mock-bar {
+  display: block;
+}
+.mock-tag {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.mock[data-kind='notes'] .mock-tag {
+  top: 50%;
+  bottom: auto;
+  right: 50%;
+  transform: translate(50%, -50%);
+  background: var(--bg);
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+.mock[data-kind='prompter'] .mock-tag {
+  top: 10px;
+  bottom: auto;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Why it matters: three short facts, stacked on phones. */
+.facts {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fact {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+.fact strong {
+  color: var(--fg);
+}
+@media (min-width: 640px) {
+  .facts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 .about-heading {
   margin: 1.75rem 0 0.7rem;
   font-size: 1rem;

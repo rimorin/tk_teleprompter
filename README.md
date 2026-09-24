@@ -44,9 +44,49 @@ Speakers use notes to stay on track. But notes on a phone or tablet cause two pr
 
 It is easy to lose your place on the page, and your train of thought with it.
 
-**Teleprompter fixes both.** It listens while you speak, works out where you are in the script,
-and keeps that line in view for you. Look up. Make eye contact. Pause. Tell a story that is not in
-your notes. When you look back down, your place is waiting.
+<p align="center">
+  <img src="docs/images/why.svg" width="860" alt="Left: notes on a phone, a wall of text with the question 'Where was I?'. Right: Teleprompter, with your current line highlighted at eye level and a 'Following you' label." />
+</p>
+
+This matters more than it seems:
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**👀 Eye contact builds trust**
+
+In one study, more eye contact made the audience rate the speaker as more skilled and more honest
+([Beebe, 1974][beebe]).
+
+</td>
+<td width="33%" valign="top">
+
+**🙈 Looking down looks unsure**
+
+Even when you are not ([Janicek][janicek]).
+
+</td>
+<td width="33%" valign="top">
+
+**⏩ Auto-scroll does not wait**
+
+It keeps moving when you pause for a laugh or a question ([VoiceScroll][voicescroll]). On TV, a
+person scrolls to match the speaker ([Teleprompter.com][operator]), but most talks do not have
+one.
+
+</td>
+</tr>
+</table>
+
+**Teleprompter does that job for you.** It listens while you speak, works out where you are in the
+script, and keeps that line in view for you. Look up. Make eye contact. Pause. Tell a story that is
+not in your notes. When you look back down, your place is waiting.
+
+[beebe]: https://www.tandfonline.com/doi/abs/10.1080/03634527409378052
+[janicek]: https://janicekperformancegroup.com/dont-look-down-eye-contact-tips-that-transform-your-public-speaking-impact/
+[voicescroll]: https://www.voice-scroll.com/blog/speech-teleprompter-public-speaking-guide
+[operator]: https://www.teleprompter.com/blog/teleprompter-operator
 
 ## 🎬 How it works
 
