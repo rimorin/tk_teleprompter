@@ -17,10 +17,10 @@ type MicErrorCode =
 const MIC_ERROR_MESSAGES: Record<MicErrorCode, string> = {
   insecure_context: 'The microphone needs a secure page (https:// or localhost).',
   permission_denied:
-    'Microphone access was denied. Allow it in the browser’s site settings to use voice tracking.',
+    'Microphone access was denied. Allow it in the browser’s site settings to use voice following.',
   no_device: 'No microphone was found. Connect one and try again.',
   device_busy: 'The microphone is in use by another application or cannot be opened.',
-  unsupported: 'This browser does not support the audio features voice tracking needs.',
+  unsupported: 'This browser does not support the audio features voice following needs.',
   mic_error: 'The microphone could not be started.',
 };
 

@@ -102,7 +102,7 @@ export type ServerMessage = z.infer<typeof ServerMessage>;
 /** User-facing text for each error code. Never includes provider details or credentials. */
 export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   asr_not_configured:
-    'Live tracking is not configured on the server (no speech provider key). Manual mode still works.',
+    'Voice following is not set up on this server. You can still move through the script yourself.',
   asr_auth_failed: 'The speech provider rejected the server’s credentials.',
   asr_unavailable: 'The speech provider is unreachable right now.',
   asr_error: 'The speech provider reported an error.',
@@ -110,8 +110,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   unsupported_version: 'This page is out of date with the server. Reload the page.',
   access_denied: 'The access code is missing or incorrect.',
   too_many_attempts: 'Too many incorrect access codes. Try again in a few minutes.',
-  server_busy:
-    'Voice tracking is at capacity right now. Try again shortly; manual mode still works.',
+  server_busy: 'Voice following is busy right now. Try again shortly; the buttons still work.',
   session_time_limit:
     'The voice session reached its time limit. Start the microphone again to continue.',
   server_restarting: 'The server is restarting. Start the microphone again in a moment.',

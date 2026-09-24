@@ -39,7 +39,7 @@ const RETRYABLE: ReadonlySet<ClientErrorCode> = new Set<ClientErrorCode>([
 /** Wait before each reconnect attempt (about 40 s in all); resets once listening again. */
 export const RECONNECT_DELAYS_MS = [0, 1_000, 2_000, 4_000, 8_000, 8_000, 8_000, 8_000];
 
-const LOST_CONNECTION = 'Lost connection to the tracking server. Manual control still works.';
+const LOST_CONNECTION = 'Lost connection to the server. The buttons still work.';
 
 /** Microphone + transcription session lifecycle. Manual control never depends on it. */
 export function useLiveSession(handlers: Handlers) {
@@ -157,7 +157,7 @@ export function useLiveSession(handlers: Handlers) {
     setPhase('starting');
     const health = await fetchHealth();
     const configError = !health
-      ? 'Could not reach the tracking server. Manual mode still works.'
+      ? 'Could not reach the server. The buttons still work.'
       : !health.asr.configured
         ? ERROR_MESSAGES.asr_not_configured
         : null;
@@ -183,7 +183,7 @@ export function useLiveSession(handlers: Handlers) {
         format,
         onChunk: (chunk) => clientRef.current?.sendAudio(chunk),
         onEnded: () =>
-          interrupt('The microphone stopped (was it disconnected?). Manual control still works.'),
+          interrupt('The microphone stopped (was it disconnected?). The buttons still work.'),
       });
     } catch (err) {
       if (clientRef.current === client) {

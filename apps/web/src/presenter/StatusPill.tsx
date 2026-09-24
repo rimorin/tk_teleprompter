@@ -3,7 +3,7 @@ import type { TrackingStatus } from '@teleprompter/shared';
 export type Source = 'none' | 'simulation' | 'microphone';
 
 const LABELS: Record<TrackingStatus, string> = {
-  idle: 'Manual',
+  idle: 'Mic off',
   tracking: 'Following',
   paused: 'Paused',
   uncertain: 'Lost place',
@@ -12,8 +12,8 @@ const LABELS: Record<TrackingStatus, string> = {
 
 const HINTS: Partial<Record<TrackingStatus, string>> = {
   uncertain: 'Keep reading, or tap where you are.',
-  paused: 'Tracking paused — navigate manually or resume.',
-  disconnected: 'Connection lost — manual control still works.',
+  paused: 'Paused. Resume, or move through the script yourself.',
+  disconnected: 'Connection lost. The buttons still work.',
 };
 
 export function StatusPill({
@@ -35,7 +35,7 @@ export function StatusPill({
   else if (status === 'tracking' && source === 'simulation') label = 'Following (simulated)';
   else if (status === 'tracking' && source === 'microphone') label = 'Listening';
   const hint = reconnecting
-    ? 'Keep going — manual control still works.'
+    ? 'Keep going. The buttons still work.'
     : connecting
       ? undefined
       : HINTS[status];

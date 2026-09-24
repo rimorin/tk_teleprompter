@@ -37,6 +37,48 @@ describe('App (manual mode)', () => {
     expect(tokenClass('Delta')).not.toContain('spoken');
   });
 
+  it('guides a first visit: explains the steps, and says why presenting is not ready', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.getByText('Paste your talk here')).toBeInTheDocument();
+    expect(screen.getByText(/tap the mic and speak/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start presenting/i })).toBeDisabled();
+    expect(screen.getByText('Add a script to start.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    expect(screen.queryByText('Paste your talk here')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start presenting/i })).toBeEnabled();
+    expect(screen.queryByText('Add a script to start.')).not.toBeInTheDocument();
+  });
+
+  it('shows the presenter tip until it is closed, and remembers that', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<App />);
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    // The health check fails in tests, so the tip explains that voice following is off.
+    expect(await screen.findByText(/tap any word to jump there/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(screen.queryByText(/tap any word to jump there/i)).not.toBeInTheDocument();
+
+    unmount();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await act(async () => {}); // let the health check settle
+    expect(screen.queryByText(/tap any word to jump there/i)).not.toBeInTheDocument();
+  });
+
+  it('labels the dock buttons with visible text', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    const dock = screen.getByRole('toolbar', { name: 'Presenter controls' });
+    for (const label of ['Previous', 'Pause', 'Next', 'Settings']) {
+      expect(within(dock).getByText(label)).toBeInTheDocument();
+    }
+  });
+
   it('resets position with a notice when the script is edited between sessions', async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -63,7 +105,7 @@ describe('App (manual mode)', () => {
   it('persists the script locally', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<App />);
-    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
     await new Promise((r) => setTimeout(r, 450));
     unmount();
     render(<App />);
@@ -77,7 +119,7 @@ describe('App (presenter controls)', () => {
   it('changes display settings from the settings sheet and persists them', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
     await user.click(screen.getByRole('button', { name: /start presenting/i }));
     await user.click(screen.getByRole('button', { name: 'Settings' }));
     const panel = screen.getByRole('dialog', { name: 'Settings' });
@@ -100,7 +142,7 @@ describe('App (presenter controls)', () => {
   it('shows keyboard shortcuts with ?', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /load sample/i }));
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
     await user.click(screen.getByRole('button', { name: /start presenting/i }));
     await user.keyboard('?');
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
@@ -117,7 +159,7 @@ describe('App (simulated tracking)', () => {
 
   function presentSample() {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /load sample/i }));
+    fireEvent.click(screen.getByRole('button', { name: /try the sample/i }));
     fireEvent.click(screen.getByRole('button', { name: /start presenting/i }));
     // Fake the timers the simulation uses (user-event relies on real timers, so use fireEvent).
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
@@ -181,16 +223,16 @@ describe('App (simulated tracking)', () => {
     await act(async () => {
       vi.advanceTimersByTime(6_000);
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Pause tracking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pause following' }));
     const frozen = document.querySelectorAll('.tok.spoken').length;
     await act(async () => {
       vi.advanceTimersByTime(8_000);
     });
     expect(document.querySelectorAll('.tok.spoken').length).toBe(frozen);
     expect(screen.getByRole('status')).toHaveTextContent(/paused/i);
-    fireEvent.click(screen.getByRole('button', { name: 'Resume tracking' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Resume following' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stop simulation' }));
-    expect(screen.getByRole('status')).toHaveTextContent(/manual/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/mic off/i);
   });
 });
 
@@ -215,8 +257,8 @@ describe('App (access code)', () => {
     );
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: /load sample/i }));
-    expect(await screen.findByPlaceholderText(/required for voice tracking/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    expect(await screen.findByPlaceholderText(/needed for voice following/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /start presenting/i }));
     await user.click(screen.getByRole('button', { name: 'Start microphone' }));
     const dialog = await screen.findByRole('dialog', { name: /access code/i });

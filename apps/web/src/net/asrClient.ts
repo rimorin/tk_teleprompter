@@ -102,7 +102,7 @@ export class AsrClient {
     };
     ws.onerror = () => {
       if (!opened && !this.intentional) {
-        this.handlers.onError('connection_failed', 'Could not reach the tracking server.');
+        this.handlers.onError('connection_failed', 'Could not reach the server.');
       }
     };
     ws.onclose = () => {
@@ -145,7 +145,7 @@ export class AsrClient {
   private failSlow() {
     this.handlers.onError(
       'network_slow',
-      'The network is too slow for voice tracking right now. Manual control still works.',
+      'The network is too slow for voice following right now. The buttons still work.',
     );
     this.close();
   }

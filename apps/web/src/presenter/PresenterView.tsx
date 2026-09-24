@@ -50,6 +50,8 @@ import { DisplayPanel } from './DisplayPanel';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useIdle } from './useIdle';
 import { useWakeLock } from './useWakeLock';
+import { useServerStatus } from '../setup/useServerStatus';
+import { loadJson, saveJson } from '../storage';
 import { ScriptDisplay } from './ScriptDisplay';
 import { StatusPill, type Source } from './StatusPill';
 
@@ -114,6 +116,29 @@ function Toast({
   );
 }
 
+const HINT_KEY = 'teleprompter.micHintSeen.v1';
+
+/** First-use tip pointing at the microphone, shown until the mic is used or it is closed. */
+function MicHint({ voiceReady, onDismiss }: { voiceReady: boolean; onDismiss: () => void }) {
+  return (
+    <div className="toast hint">
+      <span>
+        {voiceReady ? (
+          <>
+            <strong>Tap the mic and start speaking.</strong> The script follows your voice.
+          </>
+        ) : (
+          <strong>Voice following is off here.</strong>
+        )}{' '}
+        Tap any word to jump there.
+      </span>
+      <button type="button" className="icon-btn small" onClick={onDismiss} aria-label="Got it">
+        <X size={16} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 /** Offers the distant place the speaker seems to have skipped to; one tap moves there. */
 function JumpChip({
   script,
@@ -165,6 +190,12 @@ export function PresenterView({
   /** null = closed; otherwise whether the last code was rejected. */
   const [codePrompt, setCodePrompt] = useState<{ rejected: boolean } | null>(null);
   const simRef = useRef<SimPlayer | null>(null);
+  const server = useServerStatus();
+  const [hintSeen, setHintSeen] = useState(() => loadJson<boolean>(HINT_KEY) === true);
+  const dismissHint = () => {
+    setHintSeen(true);
+    saveJson(HINT_KEY, true);
+  };
   const focus = focusTokenId(script, tracking);
   const lineHeightPx = settings.fontSizePx * settings.lineHeight;
 
@@ -182,6 +213,7 @@ export function PresenterView({
   };
 
   const startSimulation = () => {
+    dismissHint();
     simRef.current?.stop();
     const events = simulateReading(
       script,
@@ -217,10 +249,12 @@ export function PresenterView({
     onNeedsAccessCode: (rejected) => setCodePrompt({ rejected }),
   });
   const micOn = source === 'microphone';
+  const showHint = !hintSeen && source === 'none' && server.status !== 'checking';
   const toggleMic = () => {
     if (micOn) {
       void live.stop();
     } else if (source === 'none') {
+      dismissHint(); // Using the mic once means the tip has done its job.
       setSource('microphone');
       void live.start().then((result) => {
         if (result !== 'started') setSource('none');
@@ -373,6 +407,7 @@ export function PresenterView({
       </div>
 
       <div className="toasts">
+        {showHint && <MicHint voiceReady={server.status === 'ready'} onDismiss={dismissHint} />}
         {jumpTarget !== null && (
           <JumpChip script={script} tokenId={jumpTarget} onJump={() => goTo(jumpTarget + 1)} />
         )}
@@ -388,17 +423,23 @@ export function PresenterView({
           aria-label="Previous paragraph"
           title="Previous paragraph (↑)"
         >
-          <ChevronUp size={24} aria-hidden />
+          <ChevronUp size={22} aria-hidden />
+          <span className="dock-label" aria-hidden>
+            Previous
+          </span>
         </button>
         <button
           type="button"
           className="dock-btn"
           onClick={togglePause}
           disabled={!active}
-          aria-label={paused ? 'Resume tracking' : 'Pause tracking'}
-          title={`${paused ? 'Resume' : 'Pause'} tracking (Space)`}
+          aria-label={paused ? 'Resume following' : 'Pause following'}
+          title={`${paused ? 'Resume' : 'Pause'} following your voice (Space)`}
         >
           {paused ? <Play size={22} aria-hidden /> : <Pause size={22} aria-hidden />}
+          <span className="dock-label" aria-hidden>
+            {paused ? 'Resume' : 'Pause'}
+          </span>
         </button>
         {source === 'simulation' ? (
           <button
@@ -421,7 +462,7 @@ export function PresenterView({
             disabled={live.phase === 'stopping'}
             aria-pressed={micOn}
             aria-label={micOn ? 'Stop microphone' : 'Start microphone'}
-            title="Follow your voice (M). Audio is sent to the speech provider while on."
+            title="Follow your voice (M). Your voice is sent to the speech service only while on."
           >
             {micOn ? (
               <Square size={22} aria-hidden fill="currentColor" />
@@ -437,7 +478,10 @@ export function PresenterView({
           aria-label="Next paragraph"
           title="Next paragraph (↓)"
         >
-          <ChevronDown size={24} aria-hidden />
+          <ChevronDown size={22} aria-hidden />
+          <span className="dock-label" aria-hidden>
+            Next
+          </span>
         </button>
         <button
           type="button"
@@ -448,6 +492,9 @@ export function PresenterView({
           aria-haspopup="dialog"
         >
           <Settings2 size={22} aria-hidden />
+          <span className="dock-label" aria-hidden>
+            Settings
+          </span>
         </button>
         {fullscreen.supported && (
           <button
@@ -458,10 +505,13 @@ export function PresenterView({
             title="Fullscreen (F)"
           >
             {fullscreen.isFullscreen ? (
-              <Minimize2 size={20} aria-hidden />
+              <Minimize2 size={22} aria-hidden />
             ) : (
-              <Maximize2 size={20} aria-hidden />
+              <Maximize2 size={22} aria-hidden />
             )}
+            <span className="dock-label" aria-hidden>
+              {fullscreen.isFullscreen ? 'Exit' : 'Full screen'}
+            </span>
           </button>
         )}
       </nav>

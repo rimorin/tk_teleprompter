@@ -42,28 +42,38 @@ type Props = {
 
 /** Typical presentation pace used for the duration estimate. */
 const WORDS_PER_MINUTE = 140;
+/** Show the length meter only once a script gets close to the limit. */
+const SHOW_LENGTH_FROM = 0.8;
+
+/** Developer-only fixes, shown in dev builds so presenters never see them. */
+const DEV_HINTS: Partial<Record<ServerStatus, string>> = {
+  not_configured: 'Set DEEPGRAM_API_KEY in apps/server/.env.',
+  offline: 'Start the server with pnpm dev.',
+};
 
 const VOICE_STATUS: Record<ServerStatus, { icon: React.ReactNode; label: string; detail: string }> =
   {
     checking: {
       icon: <Loader2 size={16} className="spin" aria-hidden />,
       label: 'Checking…',
-      detail: 'Looking for the tracking server.',
+      detail: 'Checking that voice following is available.',
     },
     ready: {
       icon: <CheckCircle2 size={16} aria-hidden />,
       label: 'Ready',
-      detail: 'Start the microphone in the presenter and the script will follow your voice.',
+      detail: 'When you present, tap the microphone and start speaking. The script follows you.',
     },
     not_configured: {
       icon: <AlertCircle size={16} aria-hidden />,
-      label: 'Not configured',
-      detail: 'Set DEEPGRAM_API_KEY in apps/server/.env to enable voice tracking.',
+      label: 'Not set up',
+      detail:
+        'Voice following is not set up on this server. You can still present and move through the script by hand.',
     },
     offline: {
       icon: <WifiOff size={16} aria-hidden />,
-      label: 'Server offline',
-      detail: 'Voice tracking needs the local server (pnpm dev). Manual mode works without it.',
+      label: 'Unavailable',
+      detail:
+        'Can’t reach the server, so voice following is off. You can still present and move through the script by hand.',
     },
   };
 
@@ -83,6 +93,9 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const minutes = words / WORDS_PER_MINUTE;
   const usage = Math.min(1, text.length / MAX_SCRIPT_CHARS);
   const voice = VOICE_STATUS[serverStatus];
+  const devHint = import.meta.env.DEV ? DEV_HINTS[serverStatus] : undefined;
+  const empty = text.length === 0;
+  const openFilePicker = () => fileInputRef.current?.click();
 
   async function importFile(file: File | undefined) {
     if (!file) return;
@@ -143,11 +156,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <label id={`${textareaId}-label`} htmlFor={textareaId} className="card-title">
               <FileText size={17} aria-hidden /> Script
             </label>
-            <div className="card-actions">
+            <div className="card-actions" hidden={empty}>
               <button
                 type="button"
                 className="btn ghost"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openFilePicker}
                 disabled={importing}
               >
                 {importing ? (
@@ -194,6 +207,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           <div
             className="dropzone"
             data-dragging={dragging || undefined}
+            data-empty={empty || undefined}
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
@@ -208,11 +222,40 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
                 setImportError(null);
                 onTextChange(e.target.value);
               }}
-              placeholder={
-                'Paste your script here, or drop a .txt / .docx file.\n\nSeparate paragraphs with a blank line.'
-              }
+              aria-describedby={empty ? `${textareaId}-empty` : undefined}
               spellCheck
             />
+            {empty && !dragging && (
+              <div className="empty-state" id={`${textareaId}-empty`}>
+                <p className="empty-title">Paste your talk here</p>
+                <p className="muted small">
+                  Or upload a .txt or .docx file. Leave a blank line between paragraphs.
+                </p>
+                <div className="empty-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={openFilePicker}
+                    disabled={importing}
+                  >
+                    {importing ? (
+                      <Loader2 size={15} className="spin" aria-hidden />
+                    ) : (
+                      <Upload size={15} aria-hidden />
+                    )}
+                    {importing ? 'Reading…' : 'Upload a file'}
+                  </button>
+                  <button type="button" className="btn" onClick={() => onTextChange(SAMPLE_SCRIPT)}>
+                    <Sparkles size={15} aria-hidden /> Try the sample
+                  </button>
+                </div>
+                <ol className="how-steps">
+                  <li>Add your script</li>
+                  <li>Tap Start presenting</li>
+                  <li>Tap the mic and speak. The script follows your voice.</li>
+                </ol>
+              </div>
+            )}
             {dragging && (
               <div className="drop-hint" aria-hidden>
                 <Upload size={28} /> Drop to import
@@ -220,18 +263,20 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             )}
           </div>
 
-          <div className="card-foot">
-            <div className="meter" aria-hidden>
-              <div
-                className="meter-fill"
-                data-over={lengthError ? true : undefined}
-                style={{ width: `${usage * 100}%` }}
-              />
+          {(usage >= SHOW_LENGTH_FROM || lengthError) && (
+            <div className="card-foot">
+              <div className="meter" aria-hidden>
+                <div
+                  className="meter-fill"
+                  data-over={lengthError ? true : undefined}
+                  style={{ width: `${usage * 100}%` }}
+                />
+              </div>
+              <span className={lengthError ? 'error small' : 'muted small'}>
+                {text.length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} characters
+              </span>
             </div>
-            <span className={lengthError ? 'error small' : 'muted small'}>
-              {text.length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} characters
-            </span>
-          </div>
+          )}
           {(importError || lengthError) && (
             <p className="error small inline-error" role="alert">
               <AlertCircle size={15} aria-hidden /> {importError ?? lengthError}
@@ -263,19 +308,26 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             >
               <Play size={18} aria-hidden fill="currentColor" /> Start presenting
             </button>
-            <p className="muted small center hover-only-block">
-              Press <kbd className="kbd">?</kbd> in the presenter for shortcuts.
-            </p>
+            {canPresent ? (
+              <p className="muted small center hover-only-block">
+                Press <kbd className="kbd">?</kbd> in the presenter for shortcuts.
+              </p>
+            ) : (
+              !lengthError && <p className="muted small center">Add a script to start.</p>
+            )}
           </section>
 
-          <section className="card" aria-label="Voice tracking">
+          <section className="card" aria-label="Voice following">
             <div className="card-title">
-              <Mic size={17} aria-hidden /> Voice tracking
+              <Mic size={17} aria-hidden /> Voice following
               <span className="voice-status" data-status={serverStatus}>
                 {voice.icon} {voice.label}
               </span>
             </div>
-            <p className="muted small">{voice.detail}</p>
+            <p className="muted small">
+              {voice.detail}
+              {devHint && <span className="dev-hint"> Developer: {devHint}</span>}
+            </p>
             {codeRequired && (
               <label className="field">
                 <span className="small">Access code</span>
@@ -290,13 +342,13 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
                     setAccessCode(e.target.value);
                     saveAccessCode(e.target.value.trim());
                   }}
-                  placeholder="Required for voice tracking"
+                  placeholder="Needed for voice following"
                 />
               </label>
             )}
             <p className="privacy small">
-              Your script stays in this browser. While the microphone is on, live audio is sent
-              through this app’s server to Deepgram for transcription. Nothing is recorded or
+              Your script stays in this browser. Only while the microphone is on, your voice is sent
+              through this app’s server to Deepgram to turn it into text. Nothing is recorded or
               stored.
             </p>
           </section>

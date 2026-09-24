@@ -267,5 +267,5 @@ Rules of thumb:
 | Sessions drop after about a minute of silence                                                    | A proxy's idle or read timeout is too short for WebSockets                                                              |
 | Behind Cloudflare, one person's wrong codes lock out others, or everyone shares one per-IP limit | Set `CLIENT_IP_HEADERS=CF-Connecting-IP` and Cloudflare's ranges (see [Behind Cloudflare](#behind-cloudflare))          |
 | Per-IP limits hit everyone at once                                                               | `TRUST_PROXY` is off behind a proxy, so every client looks like the proxy's IP                                          |
-| “Voice tracking is at capacity” when a group starts at once                                      | `MAX_CONCURRENT_SESSIONS` or `MAX_SESSIONS_PER_IP` is below the group size (people on one network share an IP)          |
+| “Voice following is busy right now” when a group starts at once                                  | `MAX_CONCURRENT_SESSIONS` or `MAX_SESSIONS_PER_IP` is below the group size (people on one network share an IP)          |
 | Only one speaker can use voice tracking at a time                                                | The Deepgram key belongs to a secondary self-serve project (limited to one stream); use a key from your primary project |

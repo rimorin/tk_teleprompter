@@ -39,7 +39,7 @@ export function AccessCodeDialog({ rejected, onSubmit, onClose }: Props) {
           </button>
         </div>
         <p className="muted small">
-          Voice tracking on this server is protected. Enter the access code you were given; it is
+          Voice following on this server is protected. Enter the access code you were given; it is
           remembered on this device.
         </p>
         {rejected && (
