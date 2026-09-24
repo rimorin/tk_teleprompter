@@ -671,10 +671,17 @@ input[type='range']::-moz-range-thumb {
 /* ------------------------------------------------------------------ Setup (phone first) */
 
 .setup {
+  /* Fill the window so the editor can take up all the space that's left (no dead space). */
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   max-width: 880px;
   margin: 0 auto;
-  /* Room at the bottom for the fixed start bar on phones. */
-  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(120px + var(--safe-bottom));
+  /* Room at the bottom for the fixed start bar on phones (taller while it shows a hint). */
+  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(94px + var(--safe-bottom));
+}
+.setup:has(.start-hint) {
+  padding-bottom: calc(122px + var(--safe-bottom));
 }
 .visually-hidden {
   position: absolute;
@@ -1095,11 +1102,15 @@ input[type='range']::-moz-range-thumb {
 
 .dropzone {
   position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 .dropzone textarea {
   display: block;
+  flex: 1;
   width: 100%;
-  min-height: 50dvh;
+  min-height: 16rem;
   padding: 0.9rem 1rem;
   font-family: var(--font-serif);
   font-size: 17px; /* >= 16px so iOS Safari doesn't zoom on focus */
@@ -1107,7 +1118,7 @@ input[type='range']::-moz-range-thumb {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 14px;
-  resize: vertical;
+  resize: none; /* it already fills the space */
   transition: border-color 0.15s;
 }
 .dropzone textarea:focus {
@@ -1126,7 +1137,7 @@ input[type='range']::-moz-range-thumb {
 }
 /* First visit: the empty editor explains what to do. Taps pass through to the textarea. */
 .dropzone[data-empty] textarea {
-  min-height: max(46dvh, 22rem);
+  min-height: 22rem;
 }
 .empty-state {
   position: absolute;
@@ -1237,7 +1248,9 @@ input[type='range']::-moz-range-thumb {
 
 /* Document: a quiet toolbar, one writing surface, then a line of details. */
 .doc {
-  display: grid;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 0.6rem;
 }
 .doc-toolbar {
@@ -1376,9 +1389,13 @@ input[type='range']::-moz-range-thumb {
   .setup {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto 1fr;
     column-gap: 0.75rem;
     align-items: center;
-    padding: 1.5rem 1.5rem 3rem;
+    padding: 1.5rem 1.5rem 1.25rem;
+  }
+  .setup:has(.start-hint) {
+    padding-bottom: 1.25rem;
   }
   .app-header {
     margin-bottom: 0;
@@ -1403,10 +1420,11 @@ input[type='range']::-moz-range-thumb {
   }
   .doc {
     grid-column: 1 / -1;
+    align-self: stretch;
     margin-top: 1.5rem;
   }
   .dropzone textarea {
-    min-height: min(64vh, 680px);
+    min-height: 20rem;
     padding: 1.1rem 1.25rem;
   }
 }
