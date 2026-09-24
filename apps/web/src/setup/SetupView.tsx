@@ -1,10 +1,10 @@
 import {
   AlertCircle,
   CheckCircle2,
-  FileText,
+  ChevronDown,
   Info,
   Loader2,
-  Mic,
+  Lock,
   Moon,
   Play,
   ScrollText,
@@ -53,31 +53,26 @@ const DEV_HINTS: Partial<Record<ServerStatus, string>> = {
   offline: 'Start the server with pnpm dev.',
 };
 
-const VOICE_STATUS: Record<ServerStatus, { icon: React.ReactNode; label: string; detail: string }> =
-  {
-    checking: {
-      icon: <Loader2 size={16} className="spin" aria-hidden />,
-      label: 'Checking…',
-      detail: 'Checking that voice following is available.',
-    },
-    ready: {
-      icon: <CheckCircle2 size={16} aria-hidden />,
-      label: 'Ready',
-      detail: 'When you present, tap the microphone and start speaking. The script follows you.',
-    },
-    not_configured: {
-      icon: <AlertCircle size={16} aria-hidden />,
-      label: 'Not set up',
-      detail:
-        'Voice following is not set up on this server. You can still present and move through the script by hand.',
-    },
-    offline: {
-      icon: <WifiOff size={16} aria-hidden />,
-      label: 'Unavailable',
-      detail:
-        'Can’t reach the server, so voice following is off. You can still present and move through the script by hand.',
-    },
-  };
+const VOICE_STATUS: Record<ServerStatus, { icon: React.ReactNode; detail: string }> = {
+  checking: {
+    icon: <Loader2 size={14} className="spin" aria-hidden />,
+    detail: 'Checking that voice following is available.',
+  },
+  ready: {
+    icon: <CheckCircle2 size={14} aria-hidden />,
+    detail: 'When you present, tap the microphone and start speaking. The script follows you.',
+  },
+  not_configured: {
+    icon: <AlertCircle size={14} aria-hidden />,
+    detail:
+      'Voice following is not set up on this server. You can still present and move through the script by hand.',
+  },
+  offline: {
+    icon: <WifiOff size={14} aria-hidden />,
+    detail:
+      'Can’t reach the server, so voice following is off. You can still present and move through the script by hand.',
+  },
+};
 
 export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,11 +80,14 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const [importing, setImporting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  /** null = automatic: open when the server needs a code and none was saved on this device. */
+  const [voiceOpen, setVoiceOpen] = useState<boolean | null>(null);
   const textareaId = useId();
   const deferredText = useDeferredValue(text);
   const preview = useMemo(() => parseScript(deferredText), [deferredText]);
   const { status: serverStatus, codeRequired } = useServerStatus();
   const [accessCode, setAccessCode] = useState(loadAccessCode);
+  const [initialCode] = useState(accessCode);
   const lengthError = checkScriptLength(text);
   const canPresent = !lengthError && text.trim().length > 0;
   const words = preview.tokens.filter((t) => t.normalized).length;
@@ -99,6 +97,15 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const devHint = import.meta.env.DEV ? DEV_HINTS[serverStatus] : undefined;
   const empty = text.length === 0;
   const openFilePicker = () => fileInputRef.current?.click();
+  const needsCode = codeRequired && !accessCode.trim();
+  const showVoice = voiceOpen ?? (codeRequired && !initialCode);
+  const chipLabel = needsCode
+    ? 'Access code needed'
+    : serverStatus === 'ready'
+      ? 'Voice ready'
+      : serverStatus === 'checking'
+        ? 'Checking voice…'
+        : 'Voice off';
 
   async function importFile(file: File | undefined) {
     if (!file) return;
@@ -158,181 +165,79 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
         </div>
       </header>
 
-      <main className="setup-grid">
-        <section className="card editor-card" aria-labelledby={`${textareaId}-label`}>
-          <div className="card-head">
-            <label id={`${textareaId}-label`} htmlFor={textareaId} className="card-title">
-              <FileText size={17} aria-hidden /> Script
-            </label>
-            <div className="card-actions" hidden={empty}>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={openFilePicker}
-                disabled={importing}
-              >
-                {importing ? (
-                  <Loader2 size={15} className="spin" aria-hidden />
-                ) : (
-                  <Upload size={15} aria-hidden />
-                )}
-                {importing ? (
-                  'Reading…'
-                ) : (
-                  <>
-                    Upload<span className="upload-extra"> .txt / .docx</span>
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => onTextChange(SAMPLE_SCRIPT)}
-              >
-                <Sparkles size={15} aria-hidden /> Load sample
-              </button>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => onTextChange('')}
-                disabled={!text}
-                aria-label="Clear"
-                title="Clear script"
-              >
-                <Trash2 size={15} aria-hidden />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_FILE_TYPES}
-                onChange={handleFile}
-                hidden
-                data-testid="file-input"
-              />
-            </div>
-          </div>
+      {/* The one main action: top right on larger screens, a bar within thumb reach on phones. */}
+      <div className="start-bar">
+        <button
+          type="button"
+          className="btn primary large"
+          onClick={onPresent}
+          disabled={!canPresent}
+        >
+          <Play size={18} aria-hidden fill="currentColor" /> Start presenting
+        </button>
+        {!canPresent && !lengthError && (
+          <p className="muted small center start-hint">Add a script to start.</p>
+        )}
+      </div>
 
-          <div
-            className="dropzone"
-            data-dragging={dragging || undefined}
-            data-empty={empty || undefined}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-          >
-            <textarea
-              id={textareaId}
-              value={text}
-              onChange={(e) => {
-                setImportError(null);
-                onTextChange(e.target.value);
-              }}
-              aria-describedby={empty ? `${textareaId}-empty` : undefined}
-              spellCheck
-            />
-            {empty && !dragging && (
-              <div className="empty-state" id={`${textareaId}-empty`}>
-                <p className="empty-title">Paste your talk here</p>
-                <p className="muted small">
-                  Or upload a .txt or .docx file. Leave a blank line between paragraphs.
-                </p>
-                <div className="empty-actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={openFilePicker}
-                    disabled={importing}
-                  >
-                    {importing ? (
-                      <Loader2 size={15} className="spin" aria-hidden />
-                    ) : (
-                      <Upload size={15} aria-hidden />
-                    )}
-                    {importing ? 'Reading…' : 'Upload a file'}
-                  </button>
-                  <button type="button" className="btn" onClick={() => onTextChange(SAMPLE_SCRIPT)}>
-                    <Sparkles size={15} aria-hidden /> Try the sample
-                  </button>
-                </div>
-                <ol className="how-steps">
-                  <li>Add your script</li>
-                  <li>Tap Start presenting</li>
-                  <li>Tap the mic and speak. The script follows your voice.</li>
-                </ol>
-              </div>
-            )}
-            {dragging && (
-              <div className="drop-hint" aria-hidden>
-                <Upload size={28} /> Drop to import
-              </div>
-            )}
-          </div>
-
-          {(usage >= SHOW_LENGTH_FROM || lengthError) && (
-            <div className="card-foot">
-              <div className="meter" aria-hidden>
-                <div
-                  className="meter-fill"
-                  data-over={lengthError ? true : undefined}
-                  style={{ width: `${usage * 100}%` }}
-                />
-              </div>
-              <span className={lengthError ? 'error small' : 'muted small'}>
-                {text.length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} characters
-              </span>
-            </div>
-          )}
-          {(importError || lengthError) && (
-            <p className="error small inline-error" role="alert">
-              <AlertCircle size={15} aria-hidden /> {importError ?? lengthError}
-            </p>
-          )}
-        </section>
-
-        <aside className="sidebar">
-          <section className="card start-card">
-            <dl className="stats" aria-label="Script statistics">
-              <div>
-                <dt>Paragraphs</dt>
-                <dd>{preview.paragraphs.length}</dd>
-              </div>
-              <div>
-                <dt>Words</dt>
-                <dd>{words.toLocaleString()}</dd>
-              </div>
-              <div>
-                <dt>Speaking</dt>
-                <dd>{words ? (minutes < 1 ? '< 1 min' : `~${Math.round(minutes)} min`) : '–'}</dd>
-              </div>
-            </dl>
+      <main className="doc">
+        <div className="doc-toolbar">
+          <div className="card-actions" hidden={empty}>
             <button
               type="button"
-              className="btn primary large"
-              onClick={onPresent}
-              disabled={!canPresent}
+              className="btn ghost"
+              onClick={openFilePicker}
+              disabled={importing}
             >
-              <Play size={18} aria-hidden fill="currentColor" /> Start presenting
+              {importing ? (
+                <Loader2 size={15} className="spin" aria-hidden />
+              ) : (
+                <Upload size={15} aria-hidden />
+              )}
+              {importing ? 'Reading…' : 'Upload'}
             </button>
-            {canPresent ? (
-              <p className="muted small center hover-only-block">
-                Press <kbd className="kbd">?</kbd> in the presenter for shortcuts.
-              </p>
-            ) : (
-              !lengthError && <p className="muted small center">Add a script to start.</p>
-            )}
-          </section>
+            <button type="button" className="btn ghost" onClick={() => onTextChange(SAMPLE_SCRIPT)}>
+              <Sparkles size={15} aria-hidden /> Load sample
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => onTextChange('')}
+              disabled={!text}
+              aria-label="Clear"
+              title="Clear script"
+            >
+              <Trash2 size={15} aria-hidden />
+            </button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_FILE_TYPES}
+            onChange={handleFile}
+            hidden
+            data-testid="file-input"
+          />
+          <button
+            type="button"
+            className="voice-chip"
+            data-status={needsCode ? 'code' : serverStatus}
+            onClick={() => setVoiceOpen(!showVoice)}
+            aria-expanded={showVoice}
+            aria-controls={`${textareaId}-voice`}
+          >
+            {voice.icon} {chipLabel}
+            <ChevronDown size={14} aria-hidden className="chip-caret" />
+          </button>
+        </div>
 
-          <section className="card" aria-label="Voice following">
-            <div className="card-title">
-              <Mic size={17} aria-hidden /> Voice following
-              <span className="voice-status" data-status={serverStatus}>
-                {voice.icon} {voice.label}
-              </span>
-            </div>
-            <p className="muted small">
+        {showVoice && (
+          <section
+            id={`${textareaId}-voice`}
+            className="voice-details"
+            aria-label="Voice following"
+          >
+            <p>
               {voice.detail}
               {devHint && <span className="dev-hint"> Developer: {devHint}</span>}
             </p>
@@ -354,29 +259,109 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
                 />
               </label>
             )}
-            <p className="privacy small">
+            <p className="muted small">
               Your script stays in this browser. Only while the microphone is on, your voice is sent
               through this app’s server to Deepgram to turn it into text. Nothing is recorded or
               stored.
             </p>
           </section>
+        )}
 
-          {preview.paragraphs.length > 0 && (
-            <section className="card outline-card" aria-label="Paragraph outline">
-              <div className="card-title">Outline</div>
-              <ol className="outline">
-                {preview.paragraphs.map((p) => (
-                  <li key={p.id}>
-                    <span className="outline-num">{p.id + 1}</span>
-                    <span className="outline-text">
-                      {preview.source.slice(p.startOffset, p.endOffset)}
-                    </span>
-                  </li>
-                ))}
+        <label htmlFor={textareaId} className="visually-hidden">
+          Script
+        </label>
+        <div
+          className="dropzone"
+          data-dragging={dragging || undefined}
+          data-empty={empty || undefined}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+        >
+          <textarea
+            id={textareaId}
+            value={text}
+            onChange={(e) => {
+              setImportError(null);
+              onTextChange(e.target.value);
+            }}
+            aria-describedby={empty ? `${textareaId}-empty` : undefined}
+            spellCheck
+          />
+          {empty && !dragging && (
+            <div className="empty-state" id={`${textareaId}-empty`}>
+              <p className="empty-title">Paste your talk here</p>
+              <p className="muted small">
+                Or upload a .txt or .docx file. Leave a blank line between paragraphs.
+              </p>
+              <div className="empty-actions">
+                <button type="button" className="btn" onClick={openFilePicker} disabled={importing}>
+                  {importing ? (
+                    <Loader2 size={15} className="spin" aria-hidden />
+                  ) : (
+                    <Upload size={15} aria-hidden />
+                  )}
+                  {importing ? 'Reading…' : 'Upload a file'}
+                </button>
+                <button type="button" className="btn" onClick={() => onTextChange(SAMPLE_SCRIPT)}>
+                  <Sparkles size={15} aria-hidden /> Try the sample
+                </button>
+              </div>
+              <ol className="how-steps">
+                <li>Add your script</li>
+                <li>Tap Start presenting</li>
+                <li>Tap the mic and speak. The script follows your voice.</li>
               </ol>
-            </section>
+            </div>
           )}
-        </aside>
+          {dragging && (
+            <div className="drop-hint" aria-hidden>
+              <Upload size={28} /> Drop to import
+            </div>
+          )}
+        </div>
+
+        <div className="doc-meta">
+          <dl className="stats" aria-label="Script statistics">
+            <div>
+              <dd>{preview.paragraphs.length}</dd>
+              <dt>{preview.paragraphs.length === 1 ? 'paragraph' : 'paragraphs'}</dt>
+            </div>
+            <div>
+              <dd>{words.toLocaleString()}</dd>
+              <dt>words</dt>
+            </div>
+            <div>
+              <dd>{words ? (minutes < 1 ? '< 1 min' : `~${Math.round(minutes)} min`) : '–'}</dd>
+              <dt>speaking</dt>
+            </div>
+          </dl>
+          <span className="muted small doc-private">
+            <Lock size={13} aria-hidden /> Stays in this browser
+          </span>
+        </div>
+        {(usage >= SHOW_LENGTH_FROM || lengthError) && (
+          <div className="card-foot">
+            <div className="meter" aria-hidden>
+              <div
+                className="meter-fill"
+                data-over={lengthError ? true : undefined}
+                style={{ width: `${usage * 100}%` }}
+              />
+            </div>
+            <span className={lengthError ? 'error small' : 'muted small'}>
+              {text.length.toLocaleString()} / {MAX_SCRIPT_CHARS.toLocaleString()} characters
+            </span>
+          </div>
+        )}
+        {(importError || lengthError) && (
+          <p className="error small inline-error" role="alert">
+            <AlertCircle size={15} aria-hidden /> {importError ?? lengthError}
+          </p>
+        )}
       </main>
 
       {aboutOpen && (

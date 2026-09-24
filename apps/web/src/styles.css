@@ -671,10 +671,18 @@ input[type='range']::-moz-range-thumb {
 /* ------------------------------------------------------------------ Setup (phone first) */
 
 .setup {
-  max-width: 1180px;
+  max-width: 880px;
   margin: 0 auto;
   /* Room at the bottom for the fixed start bar on phones. */
-  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(150px + var(--safe-bottom));
+  padding: calc(var(--safe-top) + 12px) var(--gutter) calc(120px + var(--safe-bottom));
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 /* About: the problem and the solution, side by side on wider screens. */
 .about {
@@ -1059,24 +1067,11 @@ input[type='range']::-moz-range-thumb {
   padding: 0 0.6rem;
 }
 
-.setup-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1rem;
-}
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 0.9rem;
-}
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.25rem 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.6rem;
 }
 .card-title {
   display: flex;
@@ -1097,37 +1092,21 @@ input[type='range']::-moz-range-thumb {
 .card-actions .btn {
   padding: 0 0.6rem;
 }
-.upload-extra {
-  display: none;
-}
-.sidebar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-  gap: 1rem;
-}
-.sidebar .card > p {
-  margin: 0.6rem 0 0;
-}
 
-.editor-card {
-  display: flex;
-  flex-direction: column;
-}
 .dropzone {
   position: relative;
 }
 .dropzone textarea {
   display: block;
   width: 100%;
-  min-height: 46dvh;
-  padding: 0.9rem;
+  min-height: 50dvh;
+  padding: 0.9rem 1rem;
   font-family: var(--font-serif);
   font-size: 17px; /* >= 16px so iOS Safari doesn't zoom on focus */
   line-height: 1.6;
-  background: var(--bg);
+  background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   resize: vertical;
   transition: border-color 0.15s;
 }
@@ -1256,165 +1235,164 @@ input[type='range']::-moz-range-thumb {
   margin: 0.6rem 0 0;
 }
 
-/* Phones: the start card is a fixed bottom bar within thumb reach. */
-.start-card {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
+/* Document: a quiet toolbar, one writing surface, then a line of details. */
+.doc {
   display: grid;
   gap: 0.6rem;
-  padding: 0.75rem var(--gutter) calc(0.75rem + var(--safe-bottom));
-  border-radius: 20px 20px 0 0;
-  border-bottom: 0;
-  background: var(--bg-elev);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
 }
-.start-card p {
+.doc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-height: var(--tap);
+}
+/* The file actions stay on one row; on narrow phones the voice chip moves below them. */
+.doc-toolbar .card-actions {
+  flex-wrap: nowrap;
+  margin: 0 0 0 -0.6rem;
+}
+.voice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.voice-chip[data-status='ready'] {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+}
+.voice-chip[data-status='code'] {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+}
+.chip-caret {
+  transition: transform 0.2s var(--ease);
+}
+.voice-chip[aria-expanded='true'] .chip-caret {
+  transform: rotate(180deg);
+}
+.voice-details {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  font-size: 0.9rem;
+}
+.voice-details p {
   margin: 0;
+}
+.doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  padding: 0 0.15rem;
 }
 .stats {
   display: flex;
-  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
   margin: 0;
-  gap: 0.5rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
 }
 .stats div {
   display: flex;
   align-items: baseline;
   gap: 0.3rem;
 }
-.stats dt {
-  font-size: 0.75rem;
-  color: var(--fg-muted);
-  order: 2;
-}
 .stats dd {
   margin: 0;
-  font-size: 0.95rem;
+  color: var(--fg);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
-.voice-status {
-  margin-left: auto;
+.doc-private {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  background: var(--bg-hover);
-  color: var(--fg-muted);
 }
-.voice-status[data-status='ready'] {
-  color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 14%, transparent);
-}
-.voice-status[data-status='not_configured'] {
-  color: var(--warn);
-  background: color-mix(in srgb, var(--warn) 14%, transparent);
-}
-.privacy {
-  padding: 0.65rem 0.75rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
-  color: var(--fg-muted);
-}
-.outline-card .card-title {
-  margin-bottom: 0.5rem;
-}
-.outline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 320px;
-  overflow: auto;
-}
-.outline li {
-  display: flex;
-  min-width: 0;
-  gap: 0.6rem;
-  padding: 0.45rem 0;
-  font-size: 0.9rem;
+
+/* The one main action. Phones: a bar pinned within thumb reach. */
+.start-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.75rem var(--gutter) calc(0.75rem + var(--safe-bottom));
   border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  background: var(--bg-elev);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
 }
-.outline li:first-child {
-  border-top: 0;
-}
-.outline-num {
-  flex: none;
-  width: 1.6rem;
-  color: var(--fg-muted);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.outline-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.start-bar p {
+  margin: 0;
 }
 
 @media (min-width: 600px) {
-  .upload-extra {
-    display: inline;
-  }
   .brand p {
     display: block;
   }
+  .start-bar .btn {
+    justify-self: center;
+    width: min(100%, 520px);
+  }
 }
 
-/* Desktop / large tablet: two columns, start card back in the sidebar. */
+/* Larger screens: the main action moves to the top right, beside the header. */
 @media (min-width: 900px) {
   .setup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.75rem;
+    align-items: center;
     padding: 1.5rem 1.5rem 3rem;
   }
   .app-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
   }
-  .setup-grid {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 1.25rem;
-    align-items: start;
-  }
-  .sidebar {
-    position: sticky;
-    top: 1.5rem;
-    gap: 1.25rem;
-  }
-  .card {
-    padding: 1rem 1.1rem;
-  }
-  .start-card {
+  .start-bar {
     position: static;
-    padding: 1rem 1.1rem;
-    gap: 1rem;
-    border-radius: 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elev);
-    backdrop-filter: none;
+    display: block;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
     box-shadow: none;
   }
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+  .start-bar .btn.large {
+    width: auto;
+    min-height: 44px;
+    padding: 0 1.15rem;
+    font-size: 0.95rem;
   }
-  .stats div {
-    flex-direction: column-reverse;
-    align-items: flex-start;
-    gap: 0.15rem;
+  .start-hint {
+    display: none;
   }
-  .stats dt {
-    font-size: 0.75rem;
-  }
-  .stats dd {
-    font-size: 1.4rem;
-    letter-spacing: -0.02em;
+  .doc {
+    grid-column: 1 / -1;
+    margin-top: 1.5rem;
   }
   .dropzone textarea {
-    min-height: min(62vh, 640px);
-    padding: 1rem 1.1rem;
+    min-height: min(64vh, 680px);
+    padding: 1.1rem 1.25rem;
   }
 }
 
