@@ -70,13 +70,11 @@ function substitution(ctx: MatchContext, w: string, p: number): [number, boolean
 }
 
 /**
- * Semi-global alignment of the whole phrase against script positions [lo, hi]. The script side
- * has free start and end (the phrase may land anywhere in the window); every spoken word is
- * either matched, substituted, or an insertion. Allows substitutions, insertions (spoken words
- * not in the script; fillers are cheap), deletions (script words not spoken), and multi-word
- * spoken forms of a single script token (numbers).
- *
- * Returns one candidate per possible end position with finite cost.
+ * Semi-global alignment of the whole phrase against script positions [lo, hi]: every spoken word
+ * is consumed, but the phrase may start and end anywhere in the window. Operations: match or
+ * substitution, insertion (spoken word not in the script; fillers are cheap), deletion (script
+ * word not spoken), and a multi-word spoken form of one token (numbers). Returns one candidate
+ * per end position whose path ends on a script word.
  */
 export function alignPhrase(
   ctx: MatchContext,
@@ -147,7 +145,6 @@ export function alignPhrase(
   const candidates: AlignmentCandidate[] = [];
   for (let j = 1; j <= w; j++) {
     const idx = m * cols + j;
-    // Only report ends where this script word was actually aligned (not skipped or untouched).
     if (!endsOnScriptWord(op, m, j, cols)) continue;
     const { distinctiveness, matchedWords } = backtrace(ctx, op, back, matched, m, j, cols, lo);
     candidates.push({

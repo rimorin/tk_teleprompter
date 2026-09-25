@@ -11,7 +11,7 @@ export type ScrollPlanInput = {
   deadbandLines: number;
 };
 
-/** Default micro-scroll suppression: less than ~half a line never scrolls. */
+/** Moves under 0.6 lines don't scroll. */
 export const SCROLL_DEADBAND_LINES = 0.6;
 /** Time constant for the exponential ease toward the target. */
 const SCROLL_TAU_MS = 160;
@@ -41,10 +41,7 @@ export class ScrollAnimator {
   private frame: number | null = null;
   private lastTime = 0;
 
-  constructor(
-    private readonly el: HTMLElement,
-    private readonly tauMs = SCROLL_TAU_MS,
-  ) {}
+  constructor(private readonly el: HTMLElement) {}
 
   scrollTo(top: number, instant: boolean): void {
     if (instant) {
@@ -77,7 +74,7 @@ export class ScrollAnimator {
       this.target = null;
       return;
     }
-    this.pos += diff * (1 - Math.exp(-dt / this.tauMs));
+    this.pos += diff * (1 - Math.exp(-dt / SCROLL_TAU_MS));
     this.el.scrollTop = this.pos;
     this.frame = requestAnimationFrame(this.step);
   };

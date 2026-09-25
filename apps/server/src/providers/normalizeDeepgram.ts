@@ -12,9 +12,7 @@ const DeepgramWord = z.object({
 const DeepgramResults = z.object({
   type: z.literal('Results'),
   start: z.number(),
-  duration: z.number().optional(),
   is_final: z.boolean().optional(),
-  speech_final: z.boolean().optional(),
   channel: z.object({
     alternatives: z
       .array(z.object({ transcript: z.string(), words: z.array(DeepgramWord).optional() }))
@@ -23,15 +21,10 @@ const DeepgramResults = z.object({
 });
 
 /**
- * Map a Deepgram live `Results` message to a provider-independent transcript.
- *
- * Deepgram v1 streaming semantics: each Results message covers an audio window starting at
- * `start`. With interim_results, `is_final: false` messages are complete hypotheses for the
- * not-yet-finalized window (each replaces the previous one, they are not deltas);
- * `is_final: true` locks that window. `speech_final` only marks an endpoint and is not needed
- * for ordering. The window start (ms) is therefore both the segment id and its order.
- *
- * Returns null for non-Results messages (Metadata, SpeechStarted, UtteranceEnd) or bad input.
+ * Map a Deepgram live `Results` message to a provider-independent transcript, or null for other
+ * messages. Interim results are complete hypotheses for the unfinalized window starting at
+ * `start` (each replaces the last; they are not deltas) and `is_final` locks it, so the window
+ * start is both the segment id and its order.
  */
 export function normalizeDeepgramMessage(raw: unknown): ProviderTranscript | null {
   const parsed = DeepgramResults.safeParse(raw);

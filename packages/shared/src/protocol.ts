@@ -124,7 +124,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   server_busy: 'Voice following is busy right now. Try again shortly; the buttons still work.',
   session_time_limit:
     'The voice session reached its time limit. Start the microphone again to continue.',
-  server_restarting: 'The server is restarting. Start the microphone again in a moment.',
+  server_restarting: 'The server is restarting. Reconnecting…',
   internal: 'Something went wrong on the server.',
 };
 

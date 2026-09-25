@@ -6,8 +6,7 @@ import { useEscapeKey } from '../ui/useEscapeKey';
 const SHORTCUTS: Array<[keys: string[], action: string]> = [
   [['M'], 'Start / stop microphone'],
   [['Space'], 'Pause / resume following'],
-  [['↑', '↓'], 'Previous / next paragraph'],
-  [['PgUp', 'PgDn'], 'Previous / next paragraph'],
+  [['↑', '↓', 'PgUp', 'PgDn'], 'Previous / next paragraph'],
   [['Home'], 'Back to the start'],
   [['+', '−'], 'Larger / smaller text'],
   [['F'], 'Fullscreen'],
@@ -37,7 +36,7 @@ export function ShortcutsDialog({ onClose }: { onClose: () => void }) {
         <p className="muted small">Tap any word or paragraph to jump there.</p>
         <dl className="shortcuts">
           {SHORTCUTS.map(([keys, action]) => (
-            <div key={action + keys.join()} className="shortcut">
+            <div key={action} className="shortcut">
               <dt>
                 {keys.map((k) => (
                   <Kbd key={k}>{k}</Kbd>

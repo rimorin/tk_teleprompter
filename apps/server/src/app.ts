@@ -3,19 +3,17 @@ import websocket from '@fastify/websocket';
 import { MAX_AUDIO_FRAME_BYTES, PROTOCOL_VERSION, type HealthResponse } from '@teleprompter/shared';
 import { AccessControl } from './accessControl';
 import type { ServerConfig } from './config';
-import type { AsrProvider } from './providers/AsrProvider';
 import { isAllowedOrigin } from './origin';
 import { DeepgramProvider } from './providers/deepgram';
 import { registerSessionRoute, type Session } from './sessionSocket';
 
 type AppOptions = {
   config: ServerConfig;
-  provider?: AsrProvider;
   /** Tests shorten the client liveness check. */
   pingIntervalMs?: number;
 };
 
-export async function buildApp({ config, provider, pingIntervalMs }: AppOptions) {
+export async function buildApp({ config, pingIntervalMs }: AppOptions) {
   const app = Fastify({
     logger: {
       level: config.logLevel,
@@ -29,7 +27,7 @@ export async function buildApp({ config, provider, pingIntervalMs }: AppOptions)
         ? (_address: string, hop: number) => hop < (config.trustProxy as number)
         : config.trustProxy,
   });
-  const asr = provider ?? new DeepgramProvider(config.deepgram);
+  const asr = new DeepgramProvider(config.deepgram);
   const access = new AccessControl(config.limits);
   const sessions = new Set<Session>();
 

@@ -27,11 +27,7 @@ export const FRESH_START_MS = 1_500;
  * seconds while the phone retries it; a fresh attempt gets through as soon as the signal is back.
  */
 export const OPEN_TIMEOUT_MS = 2_000;
-/**
- * A connection must be ready (the recognizer listening) within this time, or it is retried. A
- * hung attempt is best retried quickly, but the recognizer's own connection is sometimes slow
- * yet working, so the caller lengthens this after each attempt that ran out of time.
- */
+/** Default time for the recognizer to be listening; useLiveSession lengthens it after timeouts. */
 export const READY_TIMEOUT_MS = 5_000;
 /** How often link health is checked. */
 const WATCH_MS = 200;
@@ -42,11 +38,7 @@ const DELAY_SAMPLES = 15;
 
 /** Live timing for the Diagnostics panel. Numbers only: never audio or words. */
 export type AsrMetrics = {
-  /**
-   * How long after a word was spoken it came back (median of recent interim results), from the
-   * audio sent so far vs. where the latest result ends (Deepgram's latency measure). Null
-   * until a result with word timings arrives.
-   */
+  /** Median delay from speaking a word to its interim result (Deepgram's measure); null until word timings arrive. */
   delayMs: number | null;
   /** How long the oldest audio not yet received by the server has been waiting. */
   backlogMs: number;
@@ -114,7 +106,6 @@ export class AsrClient {
     return this.id;
   }
 
-  /** The recognizer is listening on this connection. */
   get isLive(): boolean {
     return this.live;
   }
@@ -185,9 +176,8 @@ export class AsrClient {
       }
     };
     ws.onerror = () => {
-      if (!opened && !this.intentional) {
-        this.fail('connection_failed', 'Could not reach the server.');
-      }
+      // fail() ignores errors once the session is closing on purpose.
+      if (!opened) this.fail('connection_failed', 'Could not reach the server.');
     };
     ws.onclose = () => {
       this.stopTimers();
@@ -200,21 +190,20 @@ export class AsrClient {
 
   /**
    * Queue one audio chunk. Before the recognizer is listening, chunks are held (see goLive);
-   * after that they are sent at once. Returns false once the session is closing.
+   * after that they are sent at once.
    */
-  sendAudio(chunk: ArrayBuffer): boolean {
+  sendAudio(chunk: ArrayBuffer): void {
     const ws = this.ws;
-    if (!ws || this.intentional || ws.readyState > WebSocket.OPEN) return false;
+    if (!ws || this.intentional || ws.readyState > WebSocket.OPEN) return;
     const now = performance.now();
     if (!this.live) {
       this.held.push({ data: chunk, at: now });
-      return true;
+      return;
     }
     // The session's audio stream starts with its first chunk, which began one frame earlier.
     this.audioStartedAt ??= now - AUDIO_FRAME_MS;
     ws.send(chunk);
     this.unacked.push(now);
-    return true;
   }
 
   /** The recognizer is ready: send the held audio if it is still fresh, then watch the link. */

@@ -87,8 +87,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   /** Whether the speaker has clicked or typed in the editor, so Paste knows the cursor counts. */
   const editedRef = useRef(false);
-  const canReadClipboard =
-    typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+  const canReadClipboard = typeof navigator.clipboard?.readText === 'function';
   const deferredText = useDeferredValue(text);
   const preview = useMemo(() => parseScript(deferredText), [deferredText]);
   const { status: serverStatus, codeRequired } = useServerStatus();
@@ -326,7 +325,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           </section>
         )}
 
-        <label htmlFor={textareaId} className="visually-hidden">
+        <label htmlFor={textareaId} className="sr-only">
           Script
         </label>
         <div

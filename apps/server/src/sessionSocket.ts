@@ -15,14 +15,12 @@ import type { AccessControl } from './accessControl';
 import { isAllowedOrigin } from './origin';
 import type { AsrProvider, AsrStream } from './providers/AsrProvider';
 
-/** Largest JSON control message accepted. */
 const MAX_CONTROL_BYTES = 4_096;
 /** A session must send session.start within this time. */
 const START_TIMEOUT_MS = 10_000;
 /**
- * How often the server checks that the client is still there (WebSocket ping). A client that
- * misses a whole interval is gone (e.g. a phone that lost signal without closing) and its
- * session, including the provider stream, is ended.
+ * WebSocket ping interval. A client that misses a whole interval (e.g. a phone that lost signal
+ * without closing) is gone, and its session ends with its provider stream.
  */
 const PING_INTERVAL_MS = 5_000;
 
@@ -104,7 +102,6 @@ export class Session {
     this.startTimer = setTimeout(() => {
       if (this.state === 'awaiting_start') this.fail('bad_message');
     }, START_TIMEOUT_MS);
-    // Browsers answer pings automatically; no answer within an interval means the client is gone.
     this.pingTimer = setInterval(() => {
       if (!this.alive) return this.drop('client unresponsive');
       this.alive = false;

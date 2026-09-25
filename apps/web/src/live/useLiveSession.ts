@@ -203,18 +203,17 @@ export function useLiveSession(handlers: Handlers) {
     setError(null);
     setPhase('starting');
     const health = await fetchHealth();
-    const configError = !health
-      ? 'Could not reach the server. The buttons still work.'
-      : !health.asr.configured
-        ? ERROR_MESSAGES.asr_not_configured
-        : null;
-    if (configError) {
-      setError(configError);
+    if (!health || !health.asr.configured) {
+      setError(
+        health
+          ? ERROR_MESSAGES.asr_not_configured
+          : 'Could not reach the server. The buttons still work.',
+      );
       setPhase('off');
       return 'failed';
     }
     const accessCode = loadAccessCode();
-    if (health!.access.codeRequired && !accessCode) {
+    if (health.access.codeRequired && !accessCode) {
       setPhase('off');
       handlersRef.current.onNeedsAccessCode(false);
       return 'needs_code';

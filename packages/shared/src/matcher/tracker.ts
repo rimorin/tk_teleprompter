@@ -77,7 +77,7 @@ export function initialTrackingState(): TrackingState {
   };
 }
 
-export function isTrackingActive(status: TrackingStatus): boolean {
+function isTrackingActive(status: TrackingStatus): boolean {
   return status === 'tracking' || status === 'uncertain';
 }
 
@@ -282,7 +282,7 @@ function updateConfirmed(
   }
 
   const misses = state.misses + 1;
-  far ??= misses >= cfg.farSearchAfterMisses ? bestFar(ctx, phrase, anchorPos) : null;
+  far ??= bestFar(ctx, phrase, anchorPos);
   if (far) {
     // Count each spoken word once, however the provider splits speech into finals.
     const words =
@@ -396,33 +396,11 @@ export function startTracking(state: TrackingState): TrackingState {
   };
 }
 
-export function pauseTracking(state: TrackingState): TrackingState {
-  return {
-    ...state,
-    status: 'paused',
-    tentativeTokenId: null,
-    pendingJump: null,
-    jumpSuggestion: null,
-  };
+function halt(state: TrackingState, status: TrackingStatus): TrackingState {
+  return { ...state, status, tentativeTokenId: null, pendingJump: null, jumpSuggestion: null };
 }
 
-export function stopTracking(state: TrackingState): TrackingState {
-  return {
-    ...state,
-    status: 'idle',
-    tentativeTokenId: null,
-    pendingJump: null,
-    jumpSuggestion: null,
-  };
-}
-
+export const pauseTracking = (state: TrackingState) => halt(state, 'paused');
+export const stopTracking = (state: TrackingState) => halt(state, 'idle');
 /** Connection lost: freeze automatic tracking, keep the confirmed cursor. */
-export function markDisconnected(state: TrackingState): TrackingState {
-  return {
-    ...state,
-    status: 'disconnected',
-    tentativeTokenId: null,
-    pendingJump: null,
-    jumpSuggestion: null,
-  };
-}
+export const markDisconnected = (state: TrackingState) => halt(state, 'disconnected');

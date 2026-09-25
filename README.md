@@ -20,21 +20,17 @@ stays at eye level, and the words you have already said fade out.
 
 [![CI](https://github.com/rimorin/tk_teleprompter/actions/workflows/ci.yml/badge.svg)](https://github.com/rimorin/tk_teleprompter/actions/workflows/ci.yml)
 ![Node 22+](https://img.shields.io/badge/node-22%2B-3c873a)
-![pnpm 11](https://img.shields.io/badge/pnpm-11-f69220)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![React 19](https://img.shields.io/badge/React-19-61dafb)
-![Mobile first](https://img.shields.io/badge/design-mobile--first-7ea6ff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-[Why](#-why-this-exists) · [How it works](#-how-it-works) · [Features](#-features) ·
-[Privacy](#-privacy) · [Quick start](#-quick-start) · [Deploy](#-deploying) ·
-[Under the hood](#-under-the-hood)
+[Why](#why-this-exists) · [How it works](#how-it-works) · [Features](#features) ·
+[Privacy](#privacy) · [Quick start](#quick-start) · [Deploy](#deploying) ·
+[Under the hood](#under-the-hood)
 
 </div>
 
 ---
 
-## 💡 Why this exists
+## Why this exists
 
 Speakers use notes to stay on track. But notes on a phone or tablet cause two problems:
 
@@ -42,19 +38,15 @@ Speakers use notes to stay on track. But notes on a phone or tablet cause two pr
 - **You have to look up.** When you look back down, you see a wall of text and must find your
   place again.
 
-It is easy to lose your place on the page, and your train of thought with it.
-
 <p align="center">
   <img src="docs/images/why.svg" width="860" alt="Left: notes on a phone, a wall of text with the question 'Where was I?'. Right: Teleprompter, with your current line highlighted at eye level and a 'Following you' label." />
 </p>
-
-This matters more than it seems:
 
 <table>
 <tr>
 <td width="33%" valign="top">
 
-**👀 Eye contact builds trust**
+**Eye contact builds trust**
 
 In one study, more eye contact made the audience rate the speaker as more skilled and more honest
 ([Beebe, 1974][beebe]).
@@ -62,14 +54,14 @@ In one study, more eye contact made the audience rate the speaker as more skille
 </td>
 <td width="33%" valign="top">
 
-**🙈 Looking down looks unsure**
+**Looking down looks unsure**
 
 Even when you are not ([Janicek][janicek]).
 
 </td>
 <td width="33%" valign="top">
 
-**⏩ Auto-scroll does not wait**
+**Auto-scroll does not wait**
 
 It keeps moving when you pause for a laugh or a question ([VoiceScroll][voicescroll]). On TV, a
 person scrolls to match the speaker ([Teleprompter.com][operator]), but most talks do not have
@@ -80,15 +72,15 @@ one.
 </table>
 
 **Teleprompter does that job for you.** It listens while you speak, works out where you are in the
-script, and keeps that line in view for you. Look up. Make eye contact. Pause. Tell a story that is
-not in your notes. When you look back down, your place is waiting.
+script, and keeps that line in view, so you can look up and your place is still there when you
+look back down.
 
 [beebe]: https://www.tandfonline.com/doi/abs/10.1080/03634527409378052
 [janicek]: https://janicekperformancegroup.com/dont-look-down-eye-contact-tips-that-transform-your-public-speaking-impact/
 [voicescroll]: https://www.voice-scroll.com/blog/speech-teleprompter-public-speaking-guide
 [operator]: https://www.teleprompter.com/blog/teleprompter-operator
 
-## 🎬 How it works
+## How it works
 
 <table>
 <tr>
@@ -127,8 +119,6 @@ The script follows you. Tap any word to jump there yourself.
 
 ### Made for talks that don't go to plan
 
-Nobody reads a talk word for word. The app is built for that.
-
 | When you…                         | The app…                                                              |
 | --------------------------------- | --------------------------------------------------------------------- |
 | **Pause** to breathe or think     | waits. Nothing moves while you are silent.                            |
@@ -143,13 +133,13 @@ Nobody reads a talk word for word. The app is built for that.
 > A common phrase like "thank you very much" can appear in many places. On its own, it is never
 > enough to make the script jump.
 
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**🎤 Made for the stage**
+**Made for the stage**
 
 - Large text. Change the size, line spacing, column width and font.
 - Dark and light themes.
@@ -160,7 +150,7 @@ Nobody reads a talk word for word. The app is built for that.
 </td>
 <td width="50%" valign="top">
 
-**🙌 Hands-free, with manual control**
+**Hands-free, with manual control**
 
 - Follows your voice, with a clear status: _Listening_, _Lost place_, _Paused_.
 - Tap any word or paragraph to jump there.
@@ -172,7 +162,7 @@ Nobody reads a talk word for word. The app is built for that.
 <tr>
 <td width="50%" valign="top">
 
-**📱 Phone and tablet first**
+**Phone and tablet first**
 
 - Big buttons within thumb reach.
 - Keeps the screen on while you present.
@@ -183,7 +173,7 @@ Nobody reads a talk word for word. The app is built for that.
 </td>
 <td width="50%" valign="top">
 
-**🧪 Practise any time**
+**Practise any time**
 
 - A built-in practice mode acts like a speaker (clean, noisy, or with skips and stories). No
   microphone or API key needed.
@@ -201,17 +191,17 @@ Nobody reads a talk word for word. The app is built for that.
 </tr>
 </table>
 
-## 🔒 Privacy
+## Privacy
 
 ```mermaid
 flowchart LR
-    subgraph device["📱 Your device"]
+    subgraph device["Your device"]
         direction TB
-        mic["🎙️ Microphone"]
-        script["📝 Your script<br/>stays here"] --> place["🧭 Finds your place"]
+        mic["Microphone"]
+        script["Your script<br/>stays here"] --> place["Finds your place"]
     end
-    relay["🖥️ App server<br/>stores nothing"]
-    dg["☁️ Deepgram<br/>speech to text"]
+    relay["App server<br/>stores nothing"]
+    dg["Deepgram<br/>speech to text"]
 
     mic -- "audio, only while<br/>the mic is on" --> relay --> dg
     dg -- "words heard" --> relay -- "words heard" --> place
@@ -226,7 +216,7 @@ flowchart LR
 
 ---
 
-## 🚀 Quick start
+## Quick start
 
 **You need:** Node.js 22 or newer, [pnpm](https://pnpm.io) 11, and a
 [Deepgram](https://deepgram.com) API key for voice following.
@@ -268,21 +258,11 @@ You will see a certificate warning once. That is expected for a local test certi
 | `D`                     | Diagnostics panel                                     |
 | `?`                     | Show all shortcuts                                    |
 
-## 📦 Deploying
+## Deploying
 
-The app runs anywhere that runs containers: a server with Docker Compose, Kubernetes, or a
-platform like Railway, Render or Fly.io. You can also put the front end on a static host (Netlify,
-Vercel, Cloudflare Pages…) and run the API somewhere else. Cloudflare's proxy and Tunnel work too.
-
-```mermaid
-flowchart LR
-    user["📱 Browser"] -- "HTTPS" --> web["🌐 web<br/>Caddy · public<br/>serves the app"]
-    web -- "/ws and /health" --> api["🔑 api<br/>Node.js · private<br/>holds the Deepgram key"]
-    api --> dg["☁️ Deepgram"]
-```
-
-There are two images: **`web`** (public) and **`api`** (private). You set them up with
-environment variables when they start, and most platforms build them straight from this repo.
+Two containers: **`web`** (public) and **`api`** (private, holds the Deepgram key). They run on
+any container host (Docker Compose, Kubernetes, Railway, Render, Fly.io…), or put the front end
+on a static host and run the API elsewhere.
 
 ```bash
 cp apps/server/.env.example apps/server/.env    # DEEPGRAM_API_KEY, APP_ACCESS_CODE
@@ -299,29 +279,26 @@ for each option.
 
 ---
 
-## 🔧 Under the hood
+## Under the hood
 
 ### The big picture
 
 ```mermaid
 flowchart LR
-    subgraph browser["📱 Browser"]
+    subgraph browser["Browser"]
         direction TB
-        mic["🎙️ Microphone"] --> enc["Audio capture<br/>Opus, or raw PCM<br/>on older browsers"]
-        match["🧭 Matcher<br/>finds your place"] --> view["📜 Script view<br/>scrolls to your line"]
-        taps["👆 Taps and keys"] --> view
+        mic["Microphone"] --> enc["Audio capture<br/>Opus, or raw PCM<br/>on older browsers"]
+        match["Matcher<br/>finds your place"] --> view["Script view<br/>scrolls to your line"]
+        taps["Taps and keys"] --> view
     end
-    subgraph backend["🖥️ Server (Fastify)"]
+    subgraph backend["Server (Fastify)"]
         relay["Relay<br/>access code · limits"]
     end
-    dg["☁️ Deepgram<br/>Nova-3"]
+    dg["Deepgram<br/>Nova-3"]
 
     enc -- "audio · WebSocket" --> relay --> dg
     dg -- "words heard" --> relay -- "words heard" --> match
 ```
-
-The browser does the matching, so your script stays on your device. The server only passes audio
-out and words back.
 
 ### One sentence, step by step
 
@@ -332,13 +309,13 @@ comes a moment later and does not change. The app uses each one differently.
 sequenceDiagram
     autonumber
     actor You
-    participant App as 📱 Browser
-    participant DG as ☁️ Deepgram (via the server)
+    participant App as Browser
+    participant DG as Deepgram (via the server)
 
     You->>App: "Today I want to share…"
     App->>DG: audio, every 100 ms
     DG-->>App: guess: "today I want"
-    Note over App: Amber highlight moves ahead<br/>(can still change)
+    Note over App: Warm highlight moves ahead<br/>(can still change)
     DG-->>App: final: "today I want to share"
     Note over App: Words fade as spoken<br/>(locked in, never moves back)
 ```
@@ -350,21 +327,18 @@ words, missed words, "um"s and spoken numbers ("twenty twenty five" = "2025").
 
 ```mermaid
 flowchart TD
-    heard["🗣️ New final words"] --> near{"Do they match the text<br/>just ahead of you?"}
-    near -- "yes" --> move["✅ Move forward"]
-    near -- "they match text<br/>you already said" --> hold["⏸️ Stay put<br/>(you are repeating)"]
+    heard["New final words"] --> near{"Do they match the text<br/>just ahead of you?"}
+    near -- "yes" --> move["Move forward"]
+    near -- "they match text<br/>you already said" --> hold["Stay put<br/>(you are repeating)"]
     near -- "no" --> far{"Do they match a rare phrase<br/>further ahead, and only there?"}
-    far -- "yes" --> offer["👆 Show a 'Jump to …' button<br/>(one tap moves you there)"]
-    offer -- "about 14 words agree,<br/>across two or more finals" --> jump["⏩ Jump ahead by itself"]
+    far -- "yes" --> offer["Show a 'Jump to …' button<br/>(one tap moves you there)"]
+    offer -- "about 14 words agree,<br/>across two or more finals" --> jump["Jump ahead by itself"]
     offer -- "you go back to where you were" --> gone["The button goes away"]
-    far -- "not sure" --> wait["⏸️ Stay put<br/>after a few misses: 'Lost place'"]
+    far -- "not sure" --> wait["Stay put<br/>after a few misses: 'Lost place'"]
 ```
 
 - It is a **pure function**: `update(context, state, transcriptEvent) → state`. It has no
   network or Deepgram code, so it is easy to test.
-- **Guesses only move the amber highlight.** Only final results move your confirmed place, so a
-  changed guess can never push you ahead.
-- **It never jumps backward on its own.** Only a tap can move you back.
 - **Far jumps are careful.** Quoting a later part of your talk ("later I'll show you…") must not
   move the script, so a jump needs about 14 agreeing words. The **Jump to …** button appears much
   sooner, after about 5 words, so a real skip is still one tap away.
@@ -372,8 +346,7 @@ flowchart TD
   [`packages/shared/src/matcher/config.ts`](packages/shared/src/matcher/config.ts).
 
 A practice simulator makes realistic speech results (mistakes, "um"s, pauses, skips, stories and
-repeats) and knows the true position. Tests use it to measure how well the matcher follows, so
-changes are checked with numbers, not guesses.
+repeats) and knows the true position. Tests use it to measure how closely the matcher follows.
 
 ### Project layout
 
@@ -384,7 +357,7 @@ apps/
 packages/
   shared/     Message formats, tokenizer, matcher, simulator (used by both apps)
 docs/         Screenshots
-deploy/       Optional platform configs (Railway)
+deploy/       Optional platform helpers (Cloudflare)
 DEPLOYMENT.md Deployment guide for any platform
 compose.yaml  Run the production images with Docker Compose
 ```
@@ -395,7 +368,7 @@ TypeScript (strict) · React 19 · Vite · Fastify 5 · `ws` · Zod · MediaReco
 Audio `AudioWorklet` · Deepgram streaming speech-to-text (Nova-3) · Caddy · Vitest + Testing
 Library · pnpm workspaces.
 
-## 🛠️ Development
+## Development
 
 | Command                        | What it does                                             |
 | ------------------------------ | -------------------------------------------------------- |
@@ -409,7 +382,7 @@ Library · pnpm workspaces.
 Server settings (API key, access code, limits, allowed origins) are explained in
 [`apps/server/.env.example`](apps/server/.env.example).
 
-## ⚠️ Limitations
+## Limitations
 
 - **English only for now.** The design works for other languages, but it has not been tuned for
   them yet.
@@ -419,27 +392,22 @@ Server settings (API key, access code, limits, allowed origins) are explained in
   and a tap always puts you back on track.
 - **On iPhone and iPad, switching apps or locking the screen stops the microphone.** Start it
   again when you come back. (The app keeps the screen on while you present to help with this.)
-- **When the network drops or stalls,** it notices within about a second, keeps the microphone
-  on, and reconnects by itself for as long as the microphone is on. Blips under a second are
-  ridden out. Words you say while it is offline are missed on purpose: it follows what you say
-  next instead of replaying stale audio, and usually finds you again within a few words. Manual
-  control keeps working throughout.
-- **Testing so far:** automated tests, emulated phones and tablets (WebKit and Chromium), and live
-  use on a laptop. More testing on real devices is under way.
+- **Words said while the network is down are skipped,** not replayed. It reconnects by itself
+  and usually finds you again within a few words.
 - PDF import is not supported yet. Use `.txt` or `.docx`.
 
-## 🗺️ Roadmap
+## Roadmap
 
 - Show the microphone level
 - Stage directions like `[PAUSE]` or `[SLIDE 5]` that are shown but not read
 - Presets for webcams, teleprompter glass and reading distance
 - PDF import and more languages
 
-## 🤝 Contributing
+## Contributing
 
 Issues and pull requests are welcome. Run `pnpm verify` before you open a PR. If you change the
 matcher, please add a test or simulator scenario that shows what you improved.
 
-## 📄 License
+## License
 
 [MIT](LICENSE) © 2026 John-Eric Kwan

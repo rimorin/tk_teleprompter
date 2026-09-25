@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { SETTINGS_LIMITS, type PresenterSettings } from '../settings';
 import { Sheet } from '../ui/Sheet';
-import { Switch } from '../ui/controls';
+import { Kbd, Switch } from '../ui/controls';
 import { AccessCodeDialog } from '../live/AccessCodeDialog';
 import { saveAccessCode } from '../live/accessCode';
 import { useLiveSession } from '../live/useLiveSession';
@@ -365,7 +365,7 @@ export function PresenterView({
       !live.error &&
       jumpTarget === null,
   );
-  useWakeLock(true);
+  useWakeLock();
   const title = script.source.slice(0, 80).split(/\s+/).slice(0, 7).join(' ');
 
   return (
@@ -601,7 +601,7 @@ export function PresenterView({
                 setShowShortcuts(true);
               }}
             >
-              <Keyboard size={16} aria-hidden /> Keyboard shortcuts <span className="kbd">?</span>
+              <Keyboard size={16} aria-hidden /> Keyboard shortcuts <Kbd>?</Kbd>
             </button>
           </section>
         </Sheet>

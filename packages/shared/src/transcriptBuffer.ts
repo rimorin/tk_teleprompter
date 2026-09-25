@@ -43,14 +43,14 @@ export function applyTranscriptEvent(
   buf: TranscriptBuffer,
   ev: TranscriptEvent,
 ): { buffer: TranscriptBuffer; change: BufferChange } {
+  if (buf.seenFinals.includes(ev.segmentId) || ev.segmentOrder <= buf.prunedThroughOrder) {
+    return { buffer: buf, change: 'none' };
+  }
   const words = normalizeSpokenText(ev.text);
 
   if (ev.kind === 'interim') {
-    if (buf.seenFinals.includes(ev.segmentId) || ev.segmentOrder <= buf.prunedThroughOrder) {
-      return { buffer: buf, change: 'none' };
-    }
-    if (buf.interim && ev.sequence < buf.interim.sequence) return { buffer: buf, change: 'none' };
     const prev = buf.interim;
+    if (prev && ev.sequence < prev.sequence) return { buffer: buf, change: 'none' };
     if (prev && prev.segmentId === ev.segmentId && sameWords(prev.words, words)) {
       return { buffer: { ...buf, interim: { ...prev, sequence: ev.sequence } }, change: 'none' };
     }
@@ -63,9 +63,6 @@ export function applyTranscriptEvent(
     };
   }
 
-  if (buf.seenFinals.includes(ev.segmentId) || ev.segmentOrder <= buf.prunedThroughOrder) {
-    return { buffer: buf, change: 'none' };
-  }
   const seenFinals = [...buf.seenFinals, ev.segmentId].slice(-MAX_SEEN_SEGMENTS);
   // A final supersedes the interim for the same or an earlier part of the stream.
   const interim = buf.interim && buf.interim.order <= ev.segmentOrder ? null : buf.interim;

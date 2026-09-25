@@ -11,13 +11,13 @@ describe('useWakeLock', () => {
     const release = vi.fn(() => Promise.resolve());
     const request = vi.fn(() => Promise.resolve({ release, released: false }));
     Object.defineProperty(navigator, 'wakeLock', { value: { request }, configurable: true });
-    const { unmount } = renderHook(() => useWakeLock(true));
+    const { unmount } = renderHook(() => useWakeLock());
     await vi.waitFor(() => expect(request).toHaveBeenCalledWith('screen'));
     unmount();
     await vi.waitFor(() => expect(release).toHaveBeenCalled());
   });
 
   it('does nothing where the API is unsupported', () => {
-    expect(() => renderHook(() => useWakeLock(true)).unmount()).not.toThrow();
+    expect(() => renderHook(() => useWakeLock()).unmount()).not.toThrow();
   });
 });

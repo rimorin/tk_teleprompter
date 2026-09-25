@@ -7,14 +7,14 @@ type WakeLockSentinelLike = { release: () => Promise<void>; released: boolean };
  * would also stop the microphone). The lock is dropped by the browser when the page is hidden,
  * so it is re-acquired when the page becomes visible again. No-op where unsupported.
  */
-export function useWakeLock(enabled: boolean): void {
+export function useWakeLock(): void {
   useEffect(() => {
     const wakeLock = (
       navigator as Navigator & {
         wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> };
       }
     ).wakeLock;
-    if (!enabled || !wakeLock) return;
+    if (!wakeLock) return;
     let sentinel: WakeLockSentinelLike | null = null;
     let cancelled = false;
     const acquire = async () => {
@@ -34,5 +34,5 @@ export function useWakeLock(enabled: boolean): void {
       document.removeEventListener('visibilitychange', acquire);
       void sentinel?.release().catch(() => {});
     };
-  }, [enabled]);
+  }, []);
 }

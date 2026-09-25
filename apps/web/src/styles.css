@@ -123,12 +123,6 @@ h2,
 h3 {
   margin: 0;
 }
-hr {
-  border: 0;
-  border-top: 1px solid var(--border);
-  margin: 0.25rem 0;
-  width: 100%;
-}
 .muted {
   color: var(--fg-muted);
 }
@@ -151,16 +145,12 @@ hr {
   }
 }
 .desktop-only,
-.hover-only,
-.hover-only-block {
+.hover-only {
   display: none !important;
 }
 @media (hover: hover) and (pointer: fine) {
   .hover-only {
     display: inline-flex !important;
-  }
-  .hover-only-block {
-    display: block !important;
   }
 }
 @media (min-width: 1024px) and (hover: hover) {
@@ -682,14 +672,6 @@ input[type='range']::-moz-range-thumb {
 }
 .setup:has(.start-hint) {
   padding-bottom: calc(122px + var(--safe-bottom));
-}
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 /* About: the problem and the solution, side by side on wider screens. */
 .about {

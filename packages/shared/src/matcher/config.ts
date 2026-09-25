@@ -1,7 +1,6 @@
 /**
- * All matcher thresholds and window sizes in one place. Values are conservative starting points,
- * tuned against the simulated fixtures in matcher/tracker.test.ts.
- * Search sizes are in matchable script tokens (words), not characters.
+ * All matcher thresholds and window sizes, tuned against the simulated fixtures in
+ * matcher/tracker.test.ts. Sizes are in matchable script tokens (words), not characters.
  */
 export type MatcherConfig = {
   /** Rolling phrase length: how many recent spoken words are aligned against the script. */
@@ -48,8 +47,6 @@ export type MatcherConfig = {
   farConfirmWords: number;
   /** Agreeing far candidates must land within this many tokens after the pending one. */
   farAgreementWindow: number;
-  /** Far search is considered only after this many consecutive unmatched final updates. */
-  farSearchAfterMisses: number;
   /** Consecutive unmatched final updates before status becomes 'uncertain'. */
   uncertainAfterMisses: number;
   /** Tentative cursor may run at most this many tokens beyond (confirmed + interim word count). */
@@ -88,7 +85,6 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
   farCompetitorMinGap: 12,
   farConfirmWords: 14,
   farAgreementWindow: 25,
-  farSearchAfterMisses: 1,
   uncertainAfterMisses: 2,
   tentativeMaxLead: 4,
   costs: {

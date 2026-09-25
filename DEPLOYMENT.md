@@ -134,9 +134,10 @@ The pattern is the same everywhere:
 
 Platform notes:
 
-- **Railway:** ready-made service configs are in [`deploy/railway/`](deploy/railway). Create the
-  `api` and `web` services from this repo, leave the root directory as `/`, and set each service's
-  config file to `/deploy/railway/api.json` or `/deploy/railway/web.json`.
+- **Railway:** create the `api` and `web` services from this repo (root directory `/`), then in
+  each service's settings:
+  - **Builder:** Dockerfile, path `/apps/server/Dockerfile` (api) or `/apps/web/Dockerfile` (web).
+  - **Health check path:** `/health` (api) and `/healthz` (web).
   - **api** variables: `PORT=8080`, `TRUST_PROXY=true`,
     `ALLOWED_ORIGINS=https://${{web.RAILWAY_PUBLIC_DOMAIN}}` and
     `RAILWAY_DEPLOYMENT_DRAINING_SECONDS=10`.
@@ -208,10 +209,8 @@ In the tunnel's public hostname settings, route your hostname to `http://web:808
 - Optional: put the site behind **Cloudflare Access** to require sign-in in addition to (or
   instead of) `APP_ACCESS_CODE`.
 
-**4. Dropped connections.** Cloudflare may restart its servers, which closes WebSockets. The
-presenter shows that the connection was lost, keeps its place, and stays usable manually; start the
-microphone again to continue. Active sessions aren't idle: audio streams continuously while the
-microphone is on.
+**4. Dropped connections.** Cloudflare restarts close WebSockets now and then. The presenter
+reconnects by itself and keeps its place.
 
 ## Capacity and cost
 
@@ -232,7 +231,7 @@ streaming real-time audio through the server to a local stand-in for the speech 
 Rules of thumb:
 
 - **Size:** a small instance (0.5 vCPU, 256 MB) comfortably serves dozens of simultaneous
-  speakers. Keep one api replica (limits are in memory).
+  speakers.
 - **Bandwidth:** about 4 KB/s (≈ 32 kbit/s) per active microphone where the browser records
   Opus (Chrome, Edge, Firefox, Android), or 32 KB/s (≈ 256 kbit/s) with the raw PCM fallback,
   in each direction between browser → api → provider.
@@ -253,8 +252,8 @@ Rules of thumb:
   `{"ok":true,…,"asr":{"configured":true},"access":{"codeRequired":true}}`.
 - Open the site on a phone, load a script, **Start presenting → Start microphone**, enter the
   access code, and read a few lines.
-- Restart or redeploy **api** mid-session: the presenter shows "The server is restarting…", keeps
-  its place, and manual control keeps working. Start the microphone again to continue.
+- Restart or redeploy **api** mid-session: the presenter keeps its place, shows _Reconnecting…_,
+  and resumes on its own. Manual control works throughout.
 
 ## Troubleshooting
 
@@ -262,8 +261,8 @@ Rules of thumb:
 | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | 502 on `/health` or the mic can't connect (topology A)                                           | `API_URL` is wrong, or api isn't listening (its log should show `Server listening at http://[::]:8080`)                 |
 | `rejected websocket origin` in api logs                                                          | `ALLOWED_ORIGINS` doesn't exactly match the browser's origin (scheme, host, port; no trailing slash)                    |
-| Setup page says "Server offline" in topology B                                                   | `VITE_API_ORIGIN` wasn't set at build time, the API is unreachable, or its origin isn't in `ALLOWED_ORIGINS` (CORS)     |
-| "Live tracking is not configured"                                                                | `DEEPGRAM_API_KEY` is missing on api                                                                                    |
+| Setup page shows "Voice off" in topology B                                                       | `VITE_API_ORIGIN` wasn't set at build time, the API is unreachable, or its origin isn't in `ALLOWED_ORIGINS` (CORS)     |
+| "Voice following is not set up on this server"                                                   | `DEEPGRAM_API_KEY` is missing on api                                                                                    |
 | "The speech provider rejected the server's credentials"                                          | Invalid or expired Deepgram key                                                                                         |
 | Sessions drop after about a minute of silence                                                    | A proxy's idle or read timeout is too short for WebSockets                                                              |
 | Behind Cloudflare, one person's wrong codes lock out others, or everyone shares one per-IP limit | Set `CLIENT_IP_HEADERS=CF-Connecting-IP` and Cloudflare's ranges (see [Behind Cloudflare](#behind-cloudflare))          |
