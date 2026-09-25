@@ -23,9 +23,10 @@ ENV NODE_ENV=production \
     HOST=:: \
     PORT=8080
 WORKDIR /app
-COPY --from=build /repo/apps/server/dist ./dist
+# The source map stays behind: Node runs without --enable-source-maps, which costs ~15 MB of memory.
+COPY --from=build /repo/apps/server/dist/index.cjs /repo/apps/server/dist/index.cjs.LEGAL.txt ./dist/
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
   CMD wget -qO- "http://127.0.0.1:${PORT}/health" >/dev/null || exit 1
-CMD ["node", "--enable-source-maps", "dist/index.cjs"]
+CMD ["node", "dist/index.cjs"]
