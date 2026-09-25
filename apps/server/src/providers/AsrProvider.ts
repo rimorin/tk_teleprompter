@@ -15,11 +15,16 @@ export type ProviderTranscript = {
 
 export type AudioFormat = ClientAudioFormat & { language: string };
 
+export type ProviderErrorDetail = Record<string, string | number | undefined>;
+
 export type AsrCallbacks = {
   onOpen: () => void;
   onTranscript: (t: ProviderTranscript) => void;
-  /** Fatal error; the stream is closed afterwards. `code` is safe to show to users. */
-  onError: (code: ErrorCode) => void;
+  /**
+   * Fatal error; the stream is closed afterwards. `code` is safe to show to users; `detail` is
+   * for server logs (status codes, provider request ids; never audio, text or credentials).
+   */
+  onError: (code: ErrorCode, detail?: ProviderErrorDetail) => void;
   /** Stream ended. `expected` is true after an intentional close(). */
   onClose: (expected: boolean) => void;
 };

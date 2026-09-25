@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   READY_TIMEOUTS_MS,
+  BUSY_BACKOFF_MS,
   RECONNECT_DELAYS_MS,
   RETRY_EVERY_MS,
   useLiveSession,
@@ -229,6 +230,38 @@ describe('useLiveSession reconnect', () => {
     expect(handlers.onInterrupted).toHaveBeenCalledTimes(1);
     await act(async () => vi.advanceTimersByTime(60_000));
     expect(sockets()).toHaveLength(2);
+  });
+
+  it('backs off while busy (server full or provider rate limit), then resets once listening', async () => {
+    const { hook } = setup();
+    await startListening(hook);
+    const busy = () =>
+      act(() => lastSocket().receive({ type: 'session.error', code: 'server_busy', message: 'x' }));
+    for (const wait of [...BUSY_BACKOFF_MS, BUSY_BACKOFF_MS.at(-1)!]) {
+      busy();
+      const count = sockets().length;
+      await act(async () => vi.advanceTimersByTime(wait - 1));
+      expect(sockets()).toHaveLength(count); // not yet
+      await act(async () => vi.advanceTimersByTime(1));
+      expect(sockets()).toHaveLength(count + 1);
+    }
+    act(() => lastSocket().listen());
+    act(() => lastSocket().drop());
+    await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
+    expect(hook.result.current.phase).toBe('reconnecting'); // quick retries again
+    expect(sockets().length).toBe(BUSY_BACKOFF_MS.length + 3);
+  });
+
+  it('stops without retrying when the provider refuses the session', async () => {
+    const { handlers, hook } = setup();
+    await startListening(hook);
+    const msg = 'The speech provider refused this session.';
+    act(() => lastSocket().receive({ type: 'session.error', code: 'asr_error', message: msg }));
+    expect(hook.result.current.phase).toBe('off');
+    expect(hook.result.current.error).toBe(msg);
+    expect(handlers.onInterrupted).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(sockets()).toHaveLength(1);
   });
 
   it('stopping while reconnecting cancels the retry', async () => {

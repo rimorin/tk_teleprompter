@@ -1,6 +1,12 @@
 import WebSocket from 'ws';
 import type { ErrorCode } from '@teleprompter/shared';
-import type { AsrCallbacks, AsrProvider, AsrStream, AudioFormat } from './AsrProvider';
+import type {
+  AsrCallbacks,
+  AsrProvider,
+  AsrStream,
+  AudioFormat,
+  ProviderErrorDetail,
+} from './AsrProvider';
 import { normalizeDeepgramMessage } from './normalizeDeepgram';
 
 type DeepgramOptions = {
@@ -34,6 +40,22 @@ const FINISH_TIMEOUT_MS = 3_000;
  * limits, so a slow but working connection isn't cut off here first.
  */
 const CONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * Map a refused connection to what the client should do. Retrying only helps when the problem is
+ * on Deepgram's side (5xx) or the connection itself; 429 means back off, and other 4xx (bad
+ * request, out of credit) won't change on a retry.
+ */
+function upgradeErrorCode(status: number): ErrorCode {
+  if (status === 401 || status === 403) return 'asr_auth_failed';
+  if (status === 429) return 'server_busy';
+  if (status >= 400 && status < 500) return 'asr_error';
+  return 'asr_unavailable';
+}
+
+function header(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export class DeepgramProvider implements AsrProvider {
   readonly name = 'deepgram';
@@ -82,6 +104,7 @@ class DeepgramStream implements AsrStream {
   private finishTimer: NodeJS.Timeout | null = null;
   private connectTimer: NodeJS.Timeout | null = null;
   private closedIntentionally = false;
+  private requestId: string | undefined;
   private done = false;
   private readonly maxPendingBytes: number;
   private readonly lossless: boolean;
@@ -130,21 +153,31 @@ class DeepgramStream implements AsrStream {
       if (t) cb.onTranscript(t);
     });
 
+    this.ws.on('upgrade', (res) => {
+      this.requestId = header(res.headers['dg-request-id']);
+    });
+
     this.ws.on('unexpected-response', (_req, res) => {
-      // Upgrade refused: 401/403 = bad credentials, anything else = unavailable/bad request.
-      const code: ErrorCode =
-        res.statusCode === 401 || res.statusCode === 403 ? 'asr_auth_failed' : 'asr_unavailable';
       res.resume();
-      this.fail(code);
+      this.fail(upgradeErrorCode(res.statusCode ?? 0), {
+        status: res.statusCode,
+        dgError: header(res.headers['dg-error']),
+        requestId: header(res.headers['dg-request-id']),
+      });
     });
 
     this.ws.on('error', () => this.fail('asr_unavailable'));
 
-    this.ws.on('close', (code) => {
+    this.ws.on('close', (code, reason) => {
       if (this.done) return;
       // 1000 after CloseStream is the normal end; other codes mean the provider dropped us.
       if (!this.closedIntentionally && code !== 1000) {
-        this.fail(code === 1008 ? 'asr_error' : 'asr_unavailable');
+        // 1008: the audio can't be decoded, so a retry would fail the same way.
+        this.fail(code === 1008 ? 'asr_error' : 'asr_unavailable', {
+          closeCode: code,
+          reason: reason.toString() || undefined,
+          requestId: this.requestId,
+        });
         return;
       }
       this.end();
@@ -152,7 +185,8 @@ class DeepgramStream implements AsrStream {
   }
 
   sendAudio(chunk: Buffer): void {
-    if (this.done || this.closedIntentionally) return;
+    // An empty binary frame tells Deepgram the audio has ended, and it closes the stream.
+    if (this.done || this.closedIntentionally || chunk.length === 0) return;
     this.lastAudioAt = Date.now();
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(chunk);
@@ -198,9 +232,9 @@ class DeepgramStream implements AsrStream {
     if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
   }
 
-  private fail(code: ErrorCode) {
+  private fail(code: ErrorCode, detail?: ProviderErrorDetail) {
     if (this.done) return;
-    if (!this.closedIntentionally) this.cb.onError(code);
+    if (!this.closedIntentionally) this.cb.onError(code, detail);
     this.closedIntentionally = true;
     if (this.ws.readyState !== WebSocket.CLOSED) this.ws.terminate();
     this.end();

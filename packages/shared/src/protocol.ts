@@ -116,7 +116,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
     'Voice following is not set up on this server. You can still move through the script yourself.',
   asr_auth_failed: 'The speech provider rejected the server’s credentials.',
   asr_unavailable: 'The speech provider is unreachable right now.',
-  asr_error: 'The speech provider reported an error.',
+  asr_error:
+    'The speech provider refused this session, so voice following has stopped. You can still move through the script yourself.',
   bad_message: 'The server received an unexpected message.',
   unsupported_version: 'This page is out of date with the server. Reload the page.',
   access_denied: 'The access code is missing or incorrect.',

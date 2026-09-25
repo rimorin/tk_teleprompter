@@ -177,7 +177,11 @@ export class Session {
               text: t.text,
               ...(t.words ? { words: t.words } : {}),
             }),
-          onError: (code) => this.fail(code),
+          onError: (code, detail) => {
+            // Status codes and provider request ids, to diagnose failures (fail() logs the code).
+            if (detail) this.log.warn(detail, 'provider error');
+            this.fail(code);
+          },
           onClose: (expected) => {
             this.stream = null;
             if (this.state === 'closed') return;

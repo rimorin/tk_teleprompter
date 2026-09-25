@@ -31,7 +31,6 @@ const RETRYABLE: ReadonlySet<ClientErrorCode> = new Set<ClientErrorCode>([
   'connection_timeout',
   'connection_stalled',
   'asr_unavailable',
-  'asr_error',
   'server_busy',
   'server_restarting',
   'internal',
@@ -44,6 +43,8 @@ const RETRYABLE: ReadonlySet<ClientErrorCode> = new Set<ClientErrorCode>([
  */
 export const RECONNECT_DELAYS_MS = [0, 500, 1_000];
 export const RETRY_EVERY_MS = 2_000;
+/** Waits after each "busy" in a row (server full or provider rate limit): back off, don't hammer. */
+export const BUSY_BACKOFF_MS = [2_000, 4_000, 8_000, 16_000, 30_000];
 /**
  * Time allowed to become ready, by how many attempts in a row ran out of time: short at first
  * (a hung attempt is best retried), longer when the recognizer is slow but working.
@@ -61,7 +62,9 @@ export function useLiveSession(handlers: Handlers) {
     attempt: number;
     /** Attempts in a row that ran out of time becoming ready. */
     timeouts: number;
-  }>({ timer: null, attempt: 0, timeouts: 0 });
+    /** "Busy" answers in a row. */
+    busy: number;
+  }>({ timer: null, attempt: 0, timeouts: 0, busy: 0 });
   /** Settings reused by every connection of one microphone session; null when there is none. */
   const sessionRef = useRef<{ format: AudioFormat; accessCode: string } | null>(null);
   /** Server id of the connection being replaced, so the server can end it at once. */
@@ -77,6 +80,7 @@ export function useLiveSession(handlers: Handlers) {
     retry.timer = null;
     retry.attempt = 0;
     retry.timeouts = 0;
+    retry.busy = 0;
   }, []);
 
   const teardown = useCallback(() => {
@@ -111,7 +115,9 @@ export function useLiveSession(handlers: Handlers) {
     client?.close();
     const retry = retryRef.current;
     if (!sessionRef.current || retry.timer) return;
-    const delay = RECONNECT_DELAYS_MS[retry.attempt] ?? RETRY_EVERY_MS;
+    const delay = retry.busy
+      ? BUSY_BACKOFF_MS[Math.min(retry.busy, BUSY_BACKOFF_MS.length) - 1]!
+      : (RECONNECT_DELAYS_MS[retry.attempt] ?? RETRY_EVERY_MS);
     retry.attempt++;
     setPhase('reconnecting');
     handlersRef.current.onReconnecting();
@@ -156,6 +162,7 @@ export function useLiveSession(handlers: Handlers) {
             if (status !== 'listening' || clientRef.current !== client) return;
             retryRef.current.attempt = 0;
             retryRef.current.timeouts = 0;
+            retryRef.current.busy = 0;
             setPhase('listening');
             handlersRef.current.onListening();
           },
@@ -173,6 +180,7 @@ export function useLiveSession(handlers: Handlers) {
               return;
             }
             if (code === 'connection_timeout') retryRef.current.timeouts++;
+            if (code === 'server_busy') retryRef.current.busy++;
             if (RETRYABLE.has(code)) lostConnection();
             else interrupt(message);
           },

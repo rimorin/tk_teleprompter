@@ -1,7 +1,22 @@
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
+import type { ProviderErrorDetail } from './AsrProvider';
 import { DeepgramProvider } from './deepgram';
+
+const PCM = { encoding: 'linear16', sampleRate: 16000, channels: 1, language: 'en' } as const;
+
+/** Connect to `url` and resolve with the first error the stream reports. */
+function firstError(url: string) {
+  return new Promise<{ code: string; detail?: ProviderErrorDetail }>((resolve) =>
+    new DeepgramProvider({ apiKey: 'k', url, model: 'nova-3' }).connect(PCM, {
+      onOpen: () => {},
+      onTranscript: () => {},
+      onError: (code, detail) => resolve({ code, detail }),
+      onClose: () => {},
+    }),
+  );
+}
 
 let wss: WebSocketServer | null = null;
 afterEach(() => new Promise<void>((r) => (wss ? wss.close(() => r()) : r())));
@@ -96,5 +111,71 @@ describe('DeepgramProvider', () => {
     expect(url.searchParams.get('model')).toBe('nova-3');
     for (const p of ['encoding', 'sample_rate', 'channels'])
       expect(url.searchParams.has(p)).toBe(false);
+  });
+
+  it('only asks the client to retry refusals that a retry can fix', async () => {
+    const { createServer } = await import('node:http');
+    let status = 0;
+    const server = createServer();
+    server.on('upgrade', (_req, socket) => {
+      socket.end(
+        `HTTP/1.1 ${status} Refused\r\ndg-error: why\r\ndg-request-id: req-1\r\n` +
+          'Content-Length: 0\r\n\r\n',
+      );
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const url = `ws://127.0.0.1:${(server.address() as AddressInfo).port}/v1/listen`;
+    const codes: Record<number, string> = {};
+    for (status of [400, 402, 429, 500]) {
+      const { code, detail } = await firstError(url);
+      codes[status] = code;
+      expect(detail).toEqual({ status, dgError: 'why', requestId: 'req-1' });
+    }
+    // Bad request / out of credit won't change on a retry; 429 backs off; 5xx is Deepgram's side.
+    expect(codes).toEqual({
+      400: 'asr_error',
+      402: 'asr_error',
+      429: 'server_busy',
+      500: 'asr_unavailable',
+    });
+    server.close();
+  });
+
+  it('reports undecodable audio (close 1008) with the reason and request id', async () => {
+    wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+    await new Promise((r) => wss!.once('listening', r));
+    wss.on('headers', (headers) => headers.push('dg-request-id: req-2'));
+    wss.on('connection', (ws) => ws.close(1008, 'DATA-0000'));
+    const { code, detail } = await firstError(
+      `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/v1/listen`,
+    );
+    expect(code).toBe('asr_error');
+    expect(detail).toEqual({ closeCode: 1008, reason: 'DATA-0000', requestId: 'req-2' });
+  });
+
+  it('never forwards an empty audio frame, which would end the Deepgram stream', async () => {
+    wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
+    await new Promise((r) => wss!.once('listening', r));
+    const frames: number[] = [];
+    wss.on('connection', (ws) =>
+      ws.on('message', (d, bin) => bin && frames.push((d as Buffer).length)),
+    );
+    let opened = false;
+    const stream = new DeepgramProvider({
+      apiKey: 'k',
+      url: `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/v1/listen`,
+      model: 'nova-3',
+    }).connect(PCM, {
+      onOpen: () => (opened = true),
+      onTranscript: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+    for (let i = 0; i < 50 && !opened; i++) await new Promise((r) => setTimeout(r, 10));
+    stream.sendAudio(Buffer.alloc(0));
+    stream.sendAudio(Buffer.alloc(320));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(frames).toEqual([320]);
+    stream.close();
   });
 });
