@@ -78,7 +78,8 @@ describe('DeepgramProvider', () => {
       }),
     );
     expect(url.origin + url.pathname).toBe('wss://api.deepgram.com/v1/listen');
-    expect(url.searchParams.get('endpointing')).toBe('300');
+    expect(url.searchParams.get('endpointing')).toBe('10');
+    expect(url.searchParams.get('mip_opt_out')).toBe('true');
     expect(url.searchParams.get('smart_format')).toBe('false');
     // Credentials go in the Authorization header, never the URL.
     expect([...url.searchParams.values()]).not.toContain('k');

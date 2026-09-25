@@ -210,7 +210,8 @@ flowchart LR
 - **Your script never leaves your browser.** It is saved on your device only. `.docx` files are
   read on your device too.
 - **Audio is sent only while the microphone is on.** It goes through the app server to
-  [Deepgram](https://deepgram.com), which turns it into text.
+  [Deepgram](https://deepgram.com), which turns it into text. The app opts out of Deepgram using
+  it to train models.
 - **The server stores nothing.** No audio, no text, and it never logs what you say.
 - **The Deepgram API key stays on the server.** Your browser never sees it.
 

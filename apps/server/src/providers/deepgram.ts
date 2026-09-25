@@ -13,8 +13,12 @@ type DeepgramOptions = {
 
 /** Deepgram recommends KeepAlive every 3–5 s when no audio is being sent; it closes after ~10 s. */
 const DEFAULT_KEEPALIVE_MS = 4_000;
-/** Silence (ms) before Deepgram finalizes a segment. */
-const ENDPOINTING_MS = 300;
+/**
+ * Silence (ms) before Deepgram finalizes a segment. Deepgram's minimum: finals then land at every
+ * short pause, so the confirmed cursor keeps up about a second sooner than at 300 ms (measured),
+ * with no loss of accuracy. Interim results come slightly less often.
+ */
+const ENDPOINTING_MS = 10;
 /** Audio buffered while the upstream connection opens; older PCM is dropped beyond this. */
 const MAX_PENDING_SECONDS = 2;
 /**
@@ -57,6 +61,8 @@ export class DeepgramProvider implements AsrProvider {
       // Punctuation and formatting are unnecessary for matching (it normalizes them away).
       punctuate: 'false',
       smart_format: 'false',
+      // Keep speakers' audio out of Deepgram's model training (no price change on pay-as-you-go).
+      mip_opt_out: 'true',
     };
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
     return url.toString();
