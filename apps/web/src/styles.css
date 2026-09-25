@@ -1566,6 +1566,39 @@ input[type='range']::-moz-range-thumb {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.strip-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: var(--tap);
+  padding: 0 0.4rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.timer:not([data-state='running']) {
+  color: var(--fg-muted);
+}
+.timer[data-state='stopped'] {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .timer[data-state='stopped']:hover {
+    background: var(--bg-hover);
+    color: var(--fg);
+  }
+}
 .para-count {
   min-width: var(--tap);
   padding-right: 0.5rem;
@@ -2073,7 +2106,7 @@ input[type='range']::-moz-range-thumb {
   .topstrip .status {
     grid-column: 2;
   }
-  .para-count {
+  .strip-end {
     grid-column: 3;
     justify-self: end;
   }

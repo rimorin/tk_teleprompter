@@ -54,6 +54,7 @@ import { useWakeLock } from './useWakeLock';
 import { useServerStatus } from '../setup/useServerStatus';
 import { loadJson, saveJson } from '../storage';
 import { ScriptDisplay } from './ScriptDisplay';
+import { SessionTimer } from './SessionTimer';
 import { StatusPill, type Source } from './StatusPill';
 
 type Props = {
@@ -347,6 +348,7 @@ export function PresenterView({
   const connecting = micOn && (live.phase === 'starting' || live.phase === 'connecting');
   const reconnecting = micOn && live.phase === 'reconnecting';
   const paused = tracking.status === 'paused';
+  const timerRunning = active && !connecting && !paused && tracking.status !== 'idle';
   const jumpTarget =
     active &&
     tracking.jumpSuggestion !== null &&
@@ -403,12 +405,15 @@ export function PresenterView({
           connecting={connecting}
           reconnecting={reconnecting}
         />
-        <span
-          className="para-count"
-          aria-label={`Paragraph ${paragraphIndex + 1} of ${script.paragraphs.length}`}
-        >
-          {paragraphIndex + 1}/{script.paragraphs.length}
-        </span>
+        <div className="strip-end">
+          <SessionTimer running={timerRunning} stopped={!active} />
+          <span
+            className="para-count"
+            aria-label={`Paragraph ${paragraphIndex + 1} of ${script.paragraphs.length}`}
+          >
+            {paragraphIndex + 1}/{script.paragraphs.length}
+          </span>
+        </div>
         <div className="progress" aria-hidden="true">
           <div className="progress-fill" style={{ transform: `scaleX(${progress})` }} />
         </div>
