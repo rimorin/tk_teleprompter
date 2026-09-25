@@ -10,6 +10,9 @@ type ParagraphViewProps = {
   tentativeUpTo: number;
   /** Next token to read if it is in this paragraph, else -1. */
   nextTokenId: number;
+  /** Token range of a suggested jump within this paragraph, or null. */
+  jumpFrom: number | null;
+  jumpTo: number | null;
 };
 
 /**
@@ -22,6 +25,8 @@ const ParagraphView = memo(function ParagraphView({
   spokenUpTo,
   tentativeUpTo,
   nextTokenId,
+  jumpFrom,
+  jumpTo,
 }: ParagraphViewProps) {
   const children: ReactNode[] = [];
   let prevEnd = paragraph.startOffset;
@@ -32,6 +37,9 @@ const ParagraphView = memo(function ParagraphView({
     if (id <= spokenUpTo) className += ' spoken';
     else if (id <= tentativeUpTo) className += ' tentative';
     if (id === nextTokenId) className += ' next';
+    if (jumpFrom !== null && jumpTo !== null && id >= jumpFrom && id <= jumpTo) {
+      className += ' jump-target';
+    }
     children.push(
       <span key={id} data-tid={id} className={className}>
         {token.displayText}
@@ -52,6 +60,8 @@ type ScriptDisplayProps = {
   confirmedTokenId: number | null;
   tentativeTokenId: number | null;
   nextTokenId: number | null;
+  /** First and last token of the words a "Jump to …" suggestion quotes, or null. */
+  jump: [from: number, to: number] | null;
   onReposition: (tokenId: number) => void;
 };
 
@@ -105,11 +115,23 @@ function clampTo(value: number, p: Paragraph): number {
   return Math.min(p.lastTokenId, Math.max(p.firstTokenId - 1, value));
 }
 
+/** The part of a jump suggestion inside one paragraph (nulls if none), keeping memo effective. */
+function jumpRange(
+  jump: [number, number] | null,
+  p: Paragraph,
+): { jumpFrom: number | null; jumpTo: number | null } {
+  if (!jump || jump[1] < p.firstTokenId || jump[0] > p.lastTokenId) {
+    return { jumpFrom: null, jumpTo: null };
+  }
+  return { jumpFrom: Math.max(jump[0], p.firstTokenId), jumpTo: Math.min(jump[1], p.lastTokenId) };
+}
+
 export function ScriptDisplay({
   script,
   confirmedTokenId,
   tentativeTokenId,
   nextTokenId,
+  jump,
   onReposition,
 }: ScriptDisplayProps) {
   const confirmed = confirmedTokenId ?? -1;
@@ -142,6 +164,7 @@ export function ScriptDisplay({
               ? nextTokenId
               : -1
           }
+          {...jumpRange(jump, p)}
         />
       ))}
     </div>

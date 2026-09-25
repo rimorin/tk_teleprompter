@@ -264,6 +264,13 @@ describe('App (simulated tracking)', () => {
       chip = screen.queryByRole('button', { name: /jump to/i });
     }
     expect(chip).not.toBeNull();
+    // The quoted words are marked in the script, in the paragraph the chip goes to.
+    const marked = [...document.querySelectorAll<HTMLElement>('.tok.jump-target')];
+    expect(marked.length).toBeGreaterThan(0);
+    expect(marked.every((el) => el.closest('[data-pid]')?.getAttribute('data-pid') === '3')).toBe(
+      true,
+    );
+    expect(chip!.textContent).toContain(marked.at(-1)!.textContent);
     const confirmedBefore = document.querySelectorAll('.tok.spoken').length;
     fireEvent.click(chip!);
     // The tap is a manual reposition: everything up to the suggested spot is now spoken.
@@ -275,6 +282,28 @@ describe('App (simulated tracking)', () => {
     );
     expect(screen.queryByRole('button', { name: /jump to/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Stop simulation' }));
+  });
+
+  it('asks before leaving while following, and keeps presenting on cancel', () => {
+    presentSample();
+    startSimulation();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to setup' }));
+    expect(screen.getByRole('alertdialog', { name: 'Stop and leave?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep presenting' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(/following \(simulated\)/i);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to setup' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop and leave' }));
+    expect(screen.queryByTestId('scroller')).toBeNull();
+    expect(screen.getByRole('button', { name: /start presenting/i })).toBeInTheDocument();
+  });
+
+  it('leaves without asking when nothing is running', () => {
+    presentSample();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to setup' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByTestId('scroller')).toBeNull();
   });
 
   it('pausing freezes the highlight while the simulated speaker continues', async () => {

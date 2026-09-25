@@ -11,7 +11,7 @@ stays at eye level, and the words you have already said fade out.
 
 <br />
 
-<img src="docs/images/presenter-desktop.png" alt="The presenter view following a speaker: spoken text is dimmed, the phrase being heard glows amber, and the next word is underlined on the reading line." width="860" />
+<img src="docs/images/presenter-desktop.png" alt="The presenter view following a speaker: spoken text is dimmed, the phrase being heard is a softer warm colour, and the next word is boxed and underlined on the reading line." width="860" />
 
 <sub>The presenter view in the middle of a talk (recorded with the built-in practice mode).</sub>
 
@@ -118,12 +118,12 @@ The script follows you. Tap any word to jump there yourself.
 
 ### Reading the screen
 
-| You see         | It means                               |
-| --------------- | -------------------------------------- |
-| Faded text      | You have said this                     |
-| Warm amber text | What the app is hearing right now      |
-| Underlined word | Your next word                         |
-| ◀ ▶ markers     | The reading line. Your line stays here |
+| You see           | It means                               |
+| ----------------- | -------------------------------------- |
+| Faded text        | You have said this                     |
+| Warm, dimmer text | What the app is hearing right now      |
+| Underlined word   | Your next word                         |
+| ◀ ▶ markers       | The reading line. Your line stays here |
 
 ### Made for talks that don't go to plan
 

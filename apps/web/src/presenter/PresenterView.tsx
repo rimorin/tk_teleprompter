@@ -44,11 +44,12 @@ import { useLiveSession } from '../live/useLiveSession';
 import { useAutoScroll } from '../scroll/useAutoScroll';
 import { playSimulation, type SimPlayer } from '../sim/simPlayer';
 import { scenarioOptions, SIM_SCENARIOS, type SimScenario } from '../sim/scenarios';
-import { currentParagraphId, focusTokenId, paragraphStepTarget } from './cursor';
+import { currentParagraphId, focusTokenId, jumpSnippetStart, paragraphStepTarget } from './cursor';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { DisplayPanel } from './DisplayPanel';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useIdle } from './useIdle';
+import { useEscapeKey } from '../ui/useEscapeKey';
 import { useWakeLock } from './useWakeLock';
 import { useServerStatus } from '../setup/useServerStatus';
 import { loadJson, saveJson } from '../storage';
@@ -139,6 +140,31 @@ function MicHint({ voiceReady, onDismiss }: { voiceReady: boolean; onDismiss: ()
   );
 }
 
+/** Asks before leaving mid-talk, so a stray tap on Back does not end the session. */
+function LeaveDialog({ onLeave, onStay }: { onLeave: () => void; onStay: () => void }) {
+  const stayRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => stayRef.current?.focus(), []);
+  useEscapeKey(onStay);
+  return (
+    <div className="overlay" onPointerDown={(e) => e.target === e.currentTarget && onStay()}>
+      <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="leave-title">
+        <div className="dialog-head">
+          <h2 id="leave-title">Stop and leave?</h2>
+        </div>
+        <p className="muted small">This stops following your voice. Your place is kept.</p>
+        <div className="dialog-actions">
+          <button type="button" className="btn ghost" onClick={onLeave}>
+            Stop and leave
+          </button>
+          <button ref={stayRef} type="button" className="btn primary" onClick={onStay}>
+            Keep presenting
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Offers the distant place the speaker seems to have skipped to; one tap moves there. */
 function JumpChip({
   script,
@@ -150,8 +176,7 @@ function JumpChip({
   onJump: () => void;
 }) {
   // The last few words heard there, as written, so the speaker recognizes the spot.
-  const paragraph = script.paragraphs[script.tokens[tokenId]!.paragraphId]!;
-  const from = script.tokens[Math.max(paragraph.firstTokenId, tokenId - 4)]!;
+  const from = script.tokens[jumpSnippetStart(script, tokenId)]!;
   const snippet = script.source.slice(from.startOffset, script.tokens[tokenId]!.endOffset);
   return (
     <button type="button" className="toast jump" onClick={onJump} aria-live="polite">
@@ -187,6 +212,7 @@ export function PresenterView({
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
   /** null = closed; otherwise whether the last code was rejected. */
   const [codePrompt, setCodePrompt] = useState<{ rejected: boolean } | null>(null);
   const simRef = useRef<SimPlayer | null>(null);
@@ -283,7 +309,7 @@ export function PresenterView({
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
   useEffect(() => {
     keyHandlerRef.current = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || isEditableTarget(e.target)) return;
+      if (confirmLeave || e.metaKey || e.ctrlKey || e.altKey || isEditableTarget(e.target)) return;
       const actions: Record<string, () => void> = {
         ArrowDown: () => step(1),
         PageDown: () => step(1),
@@ -335,6 +361,7 @@ export function PresenterView({
       !settingsOpen &&
       !showShortcuts &&
       !codePrompt &&
+      !confirmLeave &&
       !live.error &&
       jumpTarget === null,
   );
@@ -361,7 +388,7 @@ export function PresenterView({
         <button
           type="button"
           className="icon-btn"
-          onClick={onExit}
+          onClick={() => (active ? setConfirmLeave(true) : onExit())}
           aria-label="Back to setup"
           title="Back to setup"
         >
@@ -396,6 +423,7 @@ export function PresenterView({
               confirmedTokenId={tracking.confirmedTokenId}
               tentativeTokenId={tracking.tentativeTokenId}
               nextTokenId={finished ? null : focus}
+              jump={jumpTarget === null ? null : [jumpSnippetStart(script, jumpTarget), jumpTarget]}
               onReposition={goTo}
             />
             <div className="end-mark" data-finished={finished || undefined}>
@@ -580,6 +608,8 @@ export function PresenterView({
       )}
 
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+
+      {confirmLeave && <LeaveDialog onLeave={onExit} onStay={() => setConfirmLeave(false)} />}
 
       {codePrompt && (
         <AccessCodeDialog

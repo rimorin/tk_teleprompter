@@ -196,7 +196,7 @@ export function About() {
           </div>
           <div>
             <dt>
-              <span className="swatch" data-kind="heard" /> Warm glow
+              <span className="swatch" data-kind="heard" /> Warm
             </dt>
             <dd>What it is hearing right now.</dd>
           </div>

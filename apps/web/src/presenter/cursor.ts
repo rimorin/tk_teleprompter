@@ -30,3 +30,9 @@ export function paragraphStepTarget(
   if (delta === -1 && focus > current.firstTokenId) return current.firstTokenId;
   return script.paragraphs[current.id + delta]?.firstTokenId ?? null;
 }
+
+/** First token of the few words quoted for a jump suggestion (never before its paragraph). */
+export function jumpSnippetStart(script: ParsedScript, tokenId: number): number {
+  const paragraph = script.paragraphs[script.tokens[tokenId]!.paragraphId]!;
+  return Math.max(paragraph.firstTokenId, tokenId - 4);
+}

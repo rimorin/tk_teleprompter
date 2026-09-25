@@ -32,7 +32,7 @@
   --fg: #f3f2ee;
   --fg-muted: #979ca6;
   --fg-spoken: #595e68;
-  --fg-tentative: #ffd98a;
+  --fg-tentative: #b4a27b;
   --accent: #7ea6ff;
   --accent-fg: #0b1224;
   --accent-soft: rgba(126, 166, 255, 0.14);
@@ -55,7 +55,7 @@
   --fg: #17181b;
   --fg-muted: #636873;
   --fg-spoken: #a9adb4;
-  --fg-tentative: #8a5a00;
+  --fg-tentative: #987f51;
   --accent: #2f62d8;
   --accent-fg: #ffffff;
   --accent-soft: rgba(47, 98, 216, 0.1);
@@ -949,15 +949,14 @@ input[type='range']::-moz-range-thumb {
 }
 .demo-heard {
   color: var(--fg-tentative);
-  text-shadow: 0 0 0.4em color-mix(in srgb, var(--glow) 45%, transparent);
 }
 .demo-next {
   padding: 0 0.14em;
   border-radius: 0.28em;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
   box-shadow:
-    inset 0 -0.08em 0 var(--accent),
-    0 0 0.9em color-mix(in srgb, var(--accent) 22%, transparent);
+    inset 0 -0.1em 0 var(--accent),
+    0 0 0.9em color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .legend {
   display: grid;
@@ -987,7 +986,6 @@ input[type='range']::-moz-range-thumb {
 }
 .swatch[data-kind='heard'] {
   background: var(--fg-tentative);
-  box-shadow: 0 0 0.5em var(--glow);
 }
 .swatch[data-kind='next'] {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -1834,7 +1832,7 @@ input[type='range']::-moz-range-thumb {
   overflow-wrap: break-word;
   cursor: pointer;
 }
-/* The script: words ease from bright (to read) to warm (heard) to dim (said). */
+/* The script: words ease from bright (to read) to warm and dimmer (heard) to dim (said). */
 .script {
   position: relative;
   isolation: isolate; /* keeps the marker (z-index -1) just behind the words */
@@ -1851,7 +1849,6 @@ input[type='range']::-moz-range-thumb {
 }
 .tok.tentative {
   color: var(--fg-tentative);
-  text-shadow: 0 0 0.4em color-mix(in srgb, var(--glow) 45%, transparent);
   animation: heard 0.7s var(--ease);
 }
 /* A word lights up as it is recognized, then settles. */
@@ -1871,8 +1868,8 @@ input[type='range']::-moz-range-thumb {
   padding: 0 0.14em;
   box-sizing: content-box;
   border-radius: 0.28em;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  box-shadow: 0 0 0.9em color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: 0 0 0.9em color-mix(in srgb, var(--accent) 30%, transparent);
   pointer-events: none;
   transition:
     transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
@@ -1886,7 +1883,7 @@ input[type='range']::-moz-range-thumb {
   left: 0.14em;
   right: 0.14em;
   bottom: -0.08em;
-  height: 0.07em;
+  height: 0.1em;
   border-radius: 999px;
   background: var(--accent);
 }
@@ -1895,6 +1892,12 @@ input[type='range']::-moz-range-thumb {
 }
 .focus-marker[hidden] {
   display: none;
+}
+/* The words a "Jump to …" suggestion quotes, so the speaker sees where it goes. */
+.tok.jump-target {
+  text-decoration: underline dashed var(--accent);
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.2em;
 }
 /* Touch feedback when tapping a word to jump there. */
 .tok:active {
