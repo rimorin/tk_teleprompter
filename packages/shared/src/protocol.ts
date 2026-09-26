@@ -132,19 +132,18 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 };
 
 /** Response of GET /health. */
-const AudioEncodings = z.enum(['linear16', 'opus']);
-
 export const HealthResponse = z.object({
   ok: z.boolean(),
   protocolVersion: z.number(),
   asr: z.object({
     provider: z.string(),
     configured: z.boolean(),
-    /** Audio encodings the provider accepts. Older servers omit it: they accept both. */
-    encodings: z.array(AudioEncodings).optional(),
-    /** Providers the presenter can choose from (those with credentials), default first. */
+    /**
+     * Providers the presenter can choose from (those with credentials), default first, with the
+     * audio encodings each accepts. Older servers omit it: they offer Deepgram, which takes both.
+     */
     providers: z
-      .array(z.object({ name: z.string(), encodings: z.array(AudioEncodings) }))
+      .array(z.object({ name: z.string(), encodings: z.array(z.enum(['linear16', 'opus'])) }))
       .optional(),
   }),
   access: z.object({ codeRequired: z.boolean() }),

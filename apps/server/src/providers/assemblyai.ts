@@ -39,7 +39,7 @@ const MIN_TURN_SILENCE_MS = 160;
 function closeErrorCode(code: number, message: string): ErrorCode {
   // 1008 is also the rate limit on new sessions ("Too many concurrent sessions"): back off.
   if (code === 1008) return /too many/i.test(message) ? 'server_busy' : 'asr_auth_failed';
-  if (code === 3009) return 'server_busy'; // too many concurrent sessions
+  if (code === 3009) return 'server_busy'; // streaming rate limit
   // 3006 invalid message, 3007 audio chunks outside 50–1000 ms: a retry would fail the same way.
   if (code === 3006 || code === 3007) return 'asr_error';
   return 'asr_unavailable';
@@ -47,6 +47,10 @@ function closeErrorCode(code: number, message: string): ErrorCode {
 
 export class AssemblyAiProvider implements AsrProvider {
   readonly name = 'assemblyai';
+  /**
+   * PCM only: AssemblyAI also takes Ogg Opus, but it was ~0.4 s slower (measured), and most
+   * browsers record WebM, which it doesn't take.
+   */
   readonly encodings = ['linear16'] as const;
   constructor(private readonly opts: AssemblyAiOptions) {}
 
@@ -70,7 +74,7 @@ export class AssemblyAiProvider implements AsrProvider {
 
   connect(format: AudioFormat, cb: AsrCallbacks): AsrStream {
     // Sessions check `encodings` first, so this only guards against misuse.
-    if (format.encoding !== 'linear16') throw new Error('AssemblyAI takes PCM audio only');
+    if (format.encoding !== 'linear16') throw new Error('AssemblyAI is sent PCM only');
     return new AssemblyAiStream(this.buildUrl(format), this.opts, format.sampleRate, cb);
   }
 }

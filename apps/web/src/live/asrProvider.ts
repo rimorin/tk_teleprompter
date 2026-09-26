@@ -1,4 +1,4 @@
-import type { AudioFormat, HealthResponse } from '@teleprompter/shared';
+import type { HealthResponse } from '@teleprompter/shared';
 import { loadJson, saveJson } from '../storage';
 
 const KEY = 'teleprompter.asrProvider.v1';
@@ -18,16 +18,15 @@ export function saveProviderChoice(name: string): void {
   saveJson(KEY, name);
 }
 
+export type OfferedProvider = NonNullable<HealthResponse['asr']['providers']>[number];
+
 /**
- * The provider a session should use: the saved choice when the server still offers it,
- * otherwise the server's default. `name` is undefined for older servers that offer no choice.
+ * The saved choice when the server still offers it, otherwise the server's default. Undefined
+ * for older servers, which offer no choice.
  */
 export function resolveProvider(
-  asr: HealthResponse['asr'],
+  offered: OfferedProvider[] = [],
   saved: string | null,
-): { name: string | undefined; encodings: AudioFormat['encoding'][] } {
-  const offered = asr.providers ?? [];
-  const chosen = offered.find((p) => p.name === saved) ?? offered[0];
-  if (chosen) return { name: chosen.name, encodings: chosen.encodings };
-  return { name: undefined, encodings: asr.encodings ?? ['linear16', 'opus'] };
+): OfferedProvider | undefined {
+  return offered.find((p) => p.name === saved) ?? offered[0];
 }

@@ -31,7 +31,12 @@ import type { Theme } from '../settings';
 import { Segmented } from '../ui/controls';
 import { ACCEPTED_FILE_TYPES, checkScriptLength, ImportError, readScriptFile } from './importFile';
 import { loadAccessCode, saveAccessCode } from '../live/accessCode';
-import { loadProviderChoice, providerDisplayName, saveProviderChoice } from '../live/asrProvider';
+import {
+  loadProviderChoice,
+  providerDisplayName,
+  resolveProvider,
+  saveProviderChoice,
+} from '../live/asrProvider';
 import { useServerStatus, type ServerStatus } from './useServerStatus';
 import { About } from './About';
 import { Sheet } from '../ui/Sheet';
@@ -94,8 +99,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const { status: serverStatus, codeRequired, providers } = useServerStatus();
   const [accessCode, setAccessCode] = useState(loadAccessCode);
   const [savedProvider, setSavedProvider] = useState(loadProviderChoice);
-  // The saved choice when the server offers it, else the server's default (as sessions resolve it).
-  const provider = providers.find((p) => p === savedProvider) ?? providers[0];
+  const provider = resolveProvider(providers, savedProvider)?.name;
   const [initialCode] = useState(accessCode);
   const lengthError = checkScriptLength(text);
   const canPresent = !lengthError && text.trim().length > 0;
@@ -313,7 +317,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
                     setSavedProvider(name);
                     saveProviderChoice(name);
                   }}
-                  options={providers.map((name) => ({
+                  options={providers.map(({ name }) => ({
                     value: name,
                     label: providerDisplayName(name),
                   }))}

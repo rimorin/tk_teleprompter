@@ -164,7 +164,6 @@ describe('GET /health', () => {
       asr: {
         provider: 'deepgram',
         configured: false,
-        encodings: ['linear16', 'opus'],
         providers: [],
       },
       access: { codeRequired: false },
@@ -177,7 +176,6 @@ describe('GET /health', () => {
     expect(res.json().asr).toEqual({
       provider: 'assemblyai',
       configured: true,
-      encodings: ['linear16'],
       providers: [
         { name: 'assemblyai', encodings: ['linear16'] },
         { name: 'deepgram', encodings: ['linear16', 'opus'] },

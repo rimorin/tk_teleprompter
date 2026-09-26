@@ -376,7 +376,6 @@ describe('App (speech service)', () => {
               asr: {
                 provider: 'deepgram',
                 configured: true,
-                encodings: ['linear16', 'opus'],
                 providers: [
                   { name: 'deepgram', encodings: ['linear16', 'opus'] },
                   { name: 'assemblyai', encodings: ['linear16'] },

@@ -52,7 +52,6 @@ export async function buildApp({ config, pingIntervalMs }: AppOptions) {
       asr: {
         provider: asr.name,
         configured: asr.configured,
-        encodings: [...asr.encodings],
         providers: providers
           .filter((p) => p.configured)
           .map((p) => ({ name: p.name, encodings: [...p.encodings] })),

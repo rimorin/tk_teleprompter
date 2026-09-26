@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { OfferedProvider } from '../live/asrProvider';
 import { fetchHealth } from '../net/health';
 
 export type ServerStatus = 'checking' | 'ready' | 'not_configured' | 'offline';
@@ -7,7 +8,7 @@ type State = {
   status: ServerStatus;
   codeRequired: boolean;
   /** Speech providers the presenter can choose from, the server's default first. */
-  providers: string[];
+  providers: OfferedProvider[];
 };
 
 /** Whether live voice tracking is available, and whether it needs an access code. */
@@ -26,7 +27,7 @@ export function useServerStatus(): State {
         setState({
           status: health.asr.configured ? 'ready' : 'not_configured',
           codeRequired: health.access.codeRequired,
-          providers: health.asr.providers?.map((p) => p.name) ?? [health.asr.provider],
+          providers: health.asr.providers ?? [],
         });
     });
     return () => {

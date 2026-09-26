@@ -232,9 +232,9 @@ export function useLiveSession(handlers: Handlers) {
       handlersRef.current.onNeedsAccessCode(false);
       return 'needs_code';
     }
-    const provider = resolveProvider(health.asr, loadProviderChoice());
-    const format = pickAudioFormat(provider.encodings.includes('opus'));
-    const session = { format, accessCode, provider: provider.name };
+    const provider = resolveProvider(health.asr.providers, loadProviderChoice());
+    const format = pickAudioFormat(provider?.encodings.includes('opus') ?? true);
+    const session = { format, accessCode, provider: provider?.name };
     sessionRef.current = session;
     // Connect while the microphone starts.
     openClientRef.current();

@@ -52,8 +52,7 @@ describe('createAssemblyAiNormalizer', () => {
     const n = createAssemblyAiNormalizer();
     n(turn(0, 'good morning', 'every'));
     // If a message ever marked an earlier word tentative again, it stays final here.
-    const msg = turn(0, 'good', 'morning everyone');
-    expect(brief(n(msg))).toEqual(['interim:2:everyone']);
+    expect(brief(n(turn(0, 'good', 'morning everyone')))).toEqual(['interim:2:everyone']);
   });
 
   it('ignores other messages', () => {
