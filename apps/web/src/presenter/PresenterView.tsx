@@ -47,6 +47,7 @@ import { scenarioOptions, SIM_SCENARIOS, type SimScenario } from '../sim/scenari
 import { currentParagraphId, focusTokenId, jumpSnippetStart, paragraphStepTarget } from './cursor';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { DisplayPanel } from './DisplayPanel';
+import { VoicePanel } from './VoicePanel';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { useIdle } from './useIdle';
 import { useEscapeKey } from '../ui/useEscapeKey';
@@ -551,6 +552,7 @@ export function PresenterView({
 
       {settingsOpen && (
         <Sheet label="Settings" onClose={() => setSettingsOpen(false)}>
+          <VoicePanel micOn={micOn} />
           <DisplayPanel settings={settings} onChange={update_} />
           <section className="panel-body">
             <h3 className="panel-title">Practice without a microphone</h3>

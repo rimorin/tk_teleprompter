@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from './App';
 
@@ -364,7 +364,7 @@ describe('App (speech service)', () => {
   beforeEach(() => window.localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it('lets the presenter choose the speech service when the server offers several', async () => {
+  it('offers the speech service choice in the presenter settings, named by its benefit', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -389,13 +389,48 @@ describe('App (speech service)', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole('button', { name: /try the sample/i }));
-    await user.click(await screen.findByRole('button', { name: /voice ready/i }));
-    const picker = screen.getByRole('radiogroup', { name: 'Speech service' });
-    expect(within(picker).getByRole('radio', { name: 'Deepgram' })).toBeChecked();
-    await user.click(within(picker).getByRole('radio', { name: 'AssemblyAI' }));
+    // The setup screen names the current choice and says where to change it.
+    await user.click(await screen.findByRole('button', { name: 'Voice ready · Data saver' }));
+    expect(screen.getByText(/change it in settings while presenting/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    const panel = screen.getByRole('dialog', { name: 'Settings' });
+    const picker = await within(panel).findByRole('radiogroup', { name: 'Speech service' });
+    expect(within(picker).getByRole('radio', { name: /data saver/i })).toBeChecked();
+    await user.click(within(picker).getByRole('radio', { name: /fastest/i }));
     expect(JSON.parse(window.localStorage.getItem('teleprompter.asrProvider.v1')!)).toBe(
       'assemblyai',
     );
-    expect(screen.getByText(/sent through this app’s server to AssemblyAI/)).toBeInTheDocument();
+  });
+
+  it('shows no choice when the server offers one service', async () => {
+    const fetchHealth = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            protocolVersion: 1,
+            asr: {
+              provider: 'deepgram',
+              configured: true,
+              providers: [{ name: 'deepgram', encodings: ['linear16', 'opus'] }],
+            },
+            access: { codeRequired: false },
+          }),
+        ),
+    );
+    vi.stubGlobal('fetch', fetchHealth);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    expect(await screen.findByRole('button', { name: 'Voice ready' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    const calls = fetchHealth.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    // The settings sheet asks the server itself; wait for its answer before checking.
+    await waitFor(() => expect(fetchHealth.mock.calls.length).toBeGreaterThan(calls));
+    await act(async () => {});
+    expect(screen.queryByRole('radiogroup', { name: 'Speech service' })).not.toBeInTheDocument();
   });
 });

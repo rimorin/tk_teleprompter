@@ -31,12 +31,7 @@ import type { Theme } from '../settings';
 import { Segmented } from '../ui/controls';
 import { ACCEPTED_FILE_TYPES, checkScriptLength, ImportError, readScriptFile } from './importFile';
 import { loadAccessCode, saveAccessCode } from '../live/accessCode';
-import {
-  loadProviderChoice,
-  providerDisplayName,
-  resolveProvider,
-  saveProviderChoice,
-} from '../live/asrProvider';
+import { describeProvider, loadProviderChoice, resolveProvider } from '../live/asrProvider';
 import { useServerStatus, type ServerStatus } from './useServerStatus';
 import { About } from './About';
 import { Sheet } from '../ui/Sheet';
@@ -98,8 +93,10 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const preview = useMemo(() => parseScript(deferredText), [deferredText]);
   const { status: serverStatus, codeRequired, providers } = useServerStatus();
   const [accessCode, setAccessCode] = useState(loadAccessCode);
-  const [savedProvider, setSavedProvider] = useState(loadProviderChoice);
+  const [savedProvider] = useState(loadProviderChoice);
   const provider = resolveProvider(providers, savedProvider)?.name;
+  /** Named only when there is a choice (made in the presenter's Settings). */
+  const choice = providers.length > 1 && provider ? describeProvider(provider) : null;
   const [initialCode] = useState(accessCode);
   const lengthError = checkScriptLength(text);
   const canPresent = !lengthError && text.trim().length > 0;
@@ -115,7 +112,9 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const chipLabel = needsCode
     ? 'Access code needed'
     : serverStatus === 'ready'
-      ? 'Voice ready'
+      ? choice
+        ? `Voice ready · ${choice.label}`
+        : 'Voice ready'
       : serverStatus === 'checking'
         ? 'Checking voice…'
         : 'Voice off';
@@ -307,27 +306,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
               {voice.detail}
               {devHint && <span className="dev-hint"> Developer: {devHint}</span>}
             </p>
-            {serverStatus === 'ready' && providers.length > 1 && (
-              <div className="field">
-                <span className="small">Speech service</span>
-                <Segmented
-                  label="Speech service"
-                  value={provider!}
-                  onChange={(name) => {
-                    setSavedProvider(name);
-                    saveProviderChoice(name);
-                  }}
-                  options={providers.map(({ name }) => ({
-                    value: name,
-                    label: providerDisplayName(name),
-                  }))}
-                />
-                {provider === 'assemblyai' && (
-                  <span className="muted small">
-                    Confirms words about a second sooner. Uses about 8 times more data.
-                  </span>
-                )}
-              </div>
+            {serverStatus === 'ready' && choice && (
+              <p className="muted small">
+                Speech service: {choice.label} ({choice.vendor}). Change it in Settings while
+                presenting.
+              </p>
             )}
             {codeRequired && (
               <label className="field">
@@ -349,8 +332,9 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             )}
             <p className="muted small">
               Your script stays in this browser. Only while the microphone is on, your voice is sent
-              through this app’s server to {provider ? providerDisplayName(provider) : 'Deepgram'}{' '}
-              to turn it into text. Nothing is recorded or stored.
+              through this app’s server to{' '}
+              {provider ? describeProvider(provider).vendor : 'Deepgram'} to turn it into text.
+              Nothing is recorded or stored.
             </p>
           </section>
         )}

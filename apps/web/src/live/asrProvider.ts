@@ -3,10 +3,22 @@ import { loadJson, saveJson } from '../storage';
 
 const KEY = 'teleprompter.asrProvider.v1';
 
-const DISPLAY_NAMES: Record<string, string> = { deepgram: 'Deepgram', assemblyai: 'AssemblyAI' };
+/** Presenters choose by what a service is better at; the vendor is small print. */
+const DESCRIPTIONS: Record<string, { label: string; detail: string; vendor: string }> = {
+  assemblyai: {
+    label: 'Fastest',
+    detail: 'Words are confirmed about a second sooner. Uses more data.',
+    vendor: 'AssemblyAI',
+  },
+  deepgram: {
+    label: 'Data saver',
+    detail: 'Uploads about 8 times less audio.',
+    vendor: 'Deepgram',
+  },
+};
 
-export function providerDisplayName(name: string): string {
-  return DISPLAY_NAMES[name] ?? name;
+export function describeProvider(name: string): { label: string; detail: string; vendor: string } {
+  return DESCRIPTIONS[name] ?? { label: name, detail: '', vendor: name };
 }
 
 /** Per-device choice of speech provider, when the server offers more than one. */
