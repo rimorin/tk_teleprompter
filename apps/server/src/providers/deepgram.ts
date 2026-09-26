@@ -1,11 +1,12 @@
 import WebSocket from 'ws';
 import type { ErrorCode } from '@teleprompter/shared';
-import type {
-  AsrCallbacks,
-  AsrProvider,
-  AsrStream,
-  AudioFormat,
-  ProviderErrorDetail,
+import {
+  droppableAudioBytes,
+  type AsrCallbacks,
+  type AsrProvider,
+  type AsrStream,
+  type AudioFormat,
+  type ProviderErrorDetail,
 } from './AsrProvider';
 import { normalizeDeepgramMessage } from './normalizeDeepgram';
 
@@ -59,7 +60,7 @@ function header(value: string | string[] | undefined): string | undefined {
 
 export class DeepgramProvider implements AsrProvider {
   readonly name = 'deepgram';
-  readonly encodings = ['linear16', 'opus'] as const;
+  readonly encodings = ['linear16', 'opus', 'opus_packets'] as const;
   constructor(private readonly opts: DeepgramOptions) {}
 
   get configured(): boolean {
@@ -72,9 +73,9 @@ export class DeepgramProvider implements AsrProvider {
       model: this.opts.model,
       language: format.language,
       // Containerized audio: Deepgram reads encoding and sample rate from the container header.
-      ...(format.encoding === 'linear16'
+      ...(format.encoding !== 'opus'
         ? {
-            encoding: format.encoding,
+            encoding: format.encoding === 'linear16' ? 'linear16' : 'opus',
             sample_rate: String(format.sampleRate),
             channels: String(format.channels),
           }
@@ -116,11 +117,9 @@ class DeepgramStream implements AsrStream {
     format: AudioFormat,
     private readonly cb: AsrCallbacks,
   ) {
-    this.lossless = format.encoding !== 'linear16';
-    this.maxPendingBytes =
-      format.encoding === 'linear16'
-        ? format.sampleRate * 2 * MAX_PENDING_SECONDS // 16-bit mono
-        : MAX_PENDING_CONTAINER_BYTES;
+    const droppable = droppableAudioBytes(format, MAX_PENDING_SECONDS);
+    this.lossless = droppable === null;
+    this.maxPendingBytes = droppable ?? MAX_PENDING_CONTAINER_BYTES;
     this.ws = new WebSocket(url, { headers: { Authorization: `Token ${opts.apiKey ?? ''}` } });
     this.connectTimer = setTimeout(
       () => this.fail('asr_unavailable'),

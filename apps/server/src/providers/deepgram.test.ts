@@ -100,6 +100,19 @@ describe('DeepgramProvider', () => {
     expect([...url.searchParams.values()]).not.toContain('k');
   });
 
+  it('describes raw Opus packets, which have no header', () => {
+    const url = new URL(
+      new DeepgramProvider({
+        apiKey: 'k',
+        url: 'wss://api.deepgram.com/v1/listen',
+        model: 'nova-3',
+      }).buildUrl({ encoding: 'opus_packets', sampleRate: 16000, channels: 1, language: 'en' }),
+    );
+    expect(url.searchParams.get('encoding')).toBe('opus');
+    expect(url.searchParams.get('sample_rate')).toBe('16000');
+    expect(url.searchParams.get('channels')).toBe('1');
+  });
+
   it('lets Deepgram read containerized Opus from its header', () => {
     const url = new URL(
       new DeepgramProvider({

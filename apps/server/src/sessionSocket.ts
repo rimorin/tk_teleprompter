@@ -7,6 +7,7 @@ import {
   ERROR_MESSAGES,
   MAX_AUDIO_FRAME_BYTES,
   PROTOCOL_VERSION,
+  unpackOpusPackets,
   type ErrorCode,
   type ServerMessage,
   type SessionStatus,
@@ -79,8 +80,11 @@ export class Session {
   private state: 'awaiting_start' | 'active' | 'stopping' | 'closed' = 'awaiting_start';
   private sequence = 0;
   private admitted = false;
-  /** PCM frames must hold whole 16-bit samples; compressed chunks can be any length. */
-  private pcm = true;
+  /**
+   * How binary frames are checked and forwarded: PCM frames must hold whole 16-bit samples,
+   * Opus-packet frames are split into their packets, containerized chunks go as they are.
+   */
+  private audio: 'pcm' | 'packets' | 'container' = 'pcm';
   private readonly startTimer: NodeJS.Timeout;
   private lifetimeTimer: NodeJS.Timeout | null = null;
   private ackTimer: NodeJS.Timeout | null = null;
@@ -117,11 +121,14 @@ export class Session {
   private onMessage(data: RawData, isBinary: boolean) {
     const buf = Array.isArray(data) ? Buffer.concat(data) : Buffer.from(data as ArrayBuffer);
     if (isBinary) {
-      if (buf.length > MAX_AUDIO_FRAME_BYTES || (this.pcm && buf.length % 2 !== 0))
+      if (buf.length > MAX_AUDIO_FRAME_BYTES || (this.audio === 'pcm' && buf.length % 2 !== 0))
         return this.fail('bad_message');
+      const packets = this.audio === 'packets' ? unpackOpusPackets(buf) : [buf];
+      if (!packets) return this.fail('bad_message');
       if (this.state === 'active') {
         this.chunks++;
-        this.stream?.sendAudio(buf);
+        for (const p of packets)
+          this.stream?.sendAudio(Buffer.from(p.buffer, p.byteOffset, p.length));
       }
       return;
     }
@@ -153,7 +160,12 @@ export class Session {
       const denied = this.access.admit(this.ip, msg.accessCode);
       if (denied) return this.fail(denied);
       this.admitted = true;
-      this.pcm = msg.audio.encoding === 'linear16';
+      this.audio =
+        msg.audio.encoding === 'linear16'
+          ? 'pcm'
+          : msg.audio.encoding === 'opus_packets'
+            ? 'packets'
+            : 'container';
       // Bound the cost of any one session (e.g. a forgotten open tab).
       this.lifetimeTimer = setTimeout(
         () => this.end('session_time_limit'),

@@ -6,28 +6,50 @@ afterEach(() => vi.unstubAllGlobals());
 const stubRecorder = (supported: string[]) =>
   vi.stubGlobal('MediaRecorder', { isTypeSupported: (t: string) => supported.includes(t) });
 
+const PCM = { encoding: 'linear16', sampleRate: 16000, channels: 1 };
+const ALL = ['linear16', 'opus', 'opus_packets'] as const;
+/** WebCodecs with (or without) Opus support. */
+const stubEncoder = (supported: boolean) => {
+  vi.stubGlobal('AudioEncoder', { isConfigSupported: async () => ({ supported }) });
+  vi.stubGlobal('AudioData', class {});
+};
+
 describe('pickAudioFormat', () => {
-  it('prefers Opus in WebM, then Ogg', () => {
-    stubRecorder(['audio/webm;codecs=opus', 'audio/ogg;codecs=opus']);
-    expect(pickAudioFormat()).toEqual({ encoding: 'opus', container: 'webm' });
-    stubRecorder(['audio/ogg;codecs=opus']);
-    expect(pickAudioFormat()).toEqual({ encoding: 'opus', container: 'ogg' });
-  });
-
-  it('falls back to 16 kHz PCM without Opus recording (e.g. older Safari)', () => {
-    stubRecorder(['audio/mp4']);
-    expect(pickAudioFormat()).toEqual({ encoding: 'linear16', sampleRate: 16000, channels: 1 });
-    vi.stubGlobal('MediaRecorder', undefined);
-    expect(pickAudioFormat()).toEqual({ encoding: 'linear16', sampleRate: 16000, channels: 1 });
-  });
-
-  it('uses PCM when the server does not accept Opus', () => {
+  it("prefers Opus packets from the browser's encoder when the provider takes them", async () => {
+    stubEncoder(true);
     stubRecorder(['audio/webm;codecs=opus']);
-    expect(pickAudioFormat(false)).toEqual({
-      encoding: 'linear16',
+    expect(await pickAudioFormat(ALL)).toEqual({
+      encoding: 'opus_packets',
       sampleRate: 16000,
       channels: 1,
     });
+    // A provider that doesn't take packets gets MediaRecorder's Opus.
+    expect(await pickAudioFormat(['linear16', 'opus'])).toEqual({
+      encoding: 'opus',
+      container: 'webm',
+    });
+  });
+
+  it('prefers recorded Opus in WebM, then Ogg, without an Opus encoder', async () => {
+    stubEncoder(false);
+    stubRecorder(['audio/webm;codecs=opus', 'audio/ogg;codecs=opus']);
+    expect(await pickAudioFormat(ALL)).toEqual({ encoding: 'opus', container: 'webm' });
+    stubRecorder(['audio/ogg;codecs=opus']);
+    expect(await pickAudioFormat(ALL)).toEqual({ encoding: 'opus', container: 'ogg' });
+  });
+
+  it('falls back to 16 kHz PCM without Opus (e.g. older Safari)', async () => {
+    vi.stubGlobal('AudioEncoder', undefined);
+    stubRecorder(['audio/mp4']);
+    expect(await pickAudioFormat(ALL)).toEqual(PCM);
+    vi.stubGlobal('MediaRecorder', undefined);
+    expect(await pickAudioFormat(ALL)).toEqual(PCM);
+  });
+
+  it('uses PCM when the provider takes nothing else', async () => {
+    stubEncoder(true);
+    stubRecorder(['audio/webm;codecs=opus']);
+    expect(await pickAudioFormat(['linear16'])).toEqual(PCM);
   });
 });
 

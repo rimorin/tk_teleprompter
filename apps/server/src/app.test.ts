@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import WebSocket, { WebSocketServer } from 'ws';
-import { PROTOCOL_VERSION, ServerMessage } from '@teleprompter/shared';
+import { PROTOCOL_VERSION, ServerMessage, packOpusPackets } from '@teleprompter/shared';
 import { buildApp } from './app';
 import { isAllowedOrigin } from './origin';
 import { loadConfig } from './config';
@@ -177,8 +177,8 @@ describe('GET /health', () => {
       provider: 'assemblyai',
       configured: true,
       providers: [
-        { name: 'assemblyai', encodings: ['linear16'] },
-        { name: 'deepgram', encodings: ['linear16', 'opus'] },
+        { name: 'assemblyai', encodings: ['linear16', 'opus_packets'] },
+        { name: 'deepgram', encodings: ['linear16', 'opus', 'opus_packets'] },
       ],
     });
   });
@@ -234,6 +234,36 @@ describe('audio encodings', () => {
     const err = await client.waitFor((m) => m.type === 'session.error', 'session.error');
     expect(err).toMatchObject({ code: 'bad_message' });
     expect(upstream.connections).toHaveLength(0);
+  });
+
+  const startPackets = JSON.stringify({
+    type: 'session.start',
+    v: PROTOCOL_VERSION,
+    language: 'en',
+    audio: { encoding: 'opus_packets', sampleRate: 16000, channels: 1 },
+  });
+
+  it('forwards Opus packets one per message, as the provider expects', async () => {
+    const { wsUrl, upstream } = await setup();
+    const client = await connectClient(wsUrl);
+    client.ws.send(startPackets);
+    await client.waitFor(isStatus('listening'), 'listening');
+    const url = new URL(upstream.connections[0]!.req.url!, 'ws://x');
+    expect(url.searchParams.get('encoding')).toBe('opus');
+    client.ws.send(packOpusPackets([new Uint8Array([1, 1]), new Uint8Array([2, 2, 2])]));
+    const received = () => upstream.connections[0]!.received.filter((r) => Buffer.isBuffer(r));
+    await until(() => received().length === 2, 'packets upstream');
+    expect(received()).toEqual([Buffer.from([1, 1]), Buffer.from([2, 2, 2])]);
+  });
+
+  it('ends the session on a malformed packet frame', async () => {
+    const { wsUrl } = await setup();
+    const client = await connectClient(wsUrl);
+    client.ws.send(startPackets);
+    await client.waitFor(isStatus('listening'), 'listening');
+    client.ws.send(Buffer.from([0, 9, 1])); // claims 9 bytes, holds 1
+    const err = await client.waitFor((m) => m.type === 'session.error', 'session.error');
+    expect(err).toMatchObject({ code: 'bad_message' });
   });
 });
 

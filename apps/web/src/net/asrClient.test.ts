@@ -246,7 +246,7 @@ describe('AsrClient', () => {
       ws.receive(listening);
       chunk(client); // the stream starts one frame before its first chunk was sent
       ws.receive(ack(1));
-      expect(client.metrics()).toEqual({ delayMs: null, backlogMs: 0 });
+      expect(client.metrics()).toMatchObject({ delayMs: null, backlogMs: 0 });
       const result = (type: string, endMs: number) => ({
         type,
         sessionId: 'sess-1',

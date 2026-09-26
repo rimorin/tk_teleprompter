@@ -1,11 +1,12 @@
 import WebSocket from 'ws';
 import type { ErrorCode } from '@teleprompter/shared';
-import type {
-  AsrCallbacks,
-  AsrProvider,
-  AsrStream,
-  AudioFormat,
-  ProviderErrorDetail,
+import {
+  droppableAudioBytes,
+  type AsrCallbacks,
+  type AsrProvider,
+  type AsrStream,
+  type AudioFormat,
+  type ProviderErrorDetail,
 } from './AsrProvider';
 import { createAssemblyAiNormalizer } from './normalizeAssemblyAi';
 
@@ -48,21 +49,22 @@ function closeErrorCode(code: number, message: string): ErrorCode {
 export class AssemblyAiProvider implements AsrProvider {
   readonly name = 'assemblyai';
   /**
-   * PCM only: AssemblyAI also takes Ogg Opus, but it was ~0.4 s slower (measured), and most
-   * browsers record WebM, which it doesn't take.
+   * PCM or raw Opus packets, recognized equally fast (measured). Not containerized Opus: it takes
+   * Ogg but not the WebM most browsers record, and Ogg was ~0.4 s slower.
    */
-  readonly encodings = ['linear16'] as const;
+  readonly encodings = ['linear16', 'opus_packets'] as const;
   constructor(private readonly opts: AssemblyAiOptions) {}
 
   get configured(): boolean {
     return Boolean(this.opts.apiKey);
   }
 
-  buildUrl(format: AudioFormat & { encoding: 'linear16' }): string {
+  buildUrl(format: AudioFormat & { encoding: 'linear16' | 'opus_packets' }): string {
     const url = new URL(this.opts.url);
     const params: Record<string, string> = {
       speech_model: this.opts.model,
-      encoding: 'pcm_s16le',
+      // Raw Opus: one packet per message (the session splits the client's frames).
+      encoding: format.encoding === 'linear16' ? 'pcm_s16le' : 'opus',
       sample_rate: String(format.sampleRate),
       // Punctuation and casing are unnecessary for matching (it normalizes them away).
       format_turns: 'false',
@@ -74,8 +76,13 @@ export class AssemblyAiProvider implements AsrProvider {
 
   connect(format: AudioFormat, cb: AsrCallbacks): AsrStream {
     // Sessions check `encodings` first, so this only guards against misuse.
-    if (format.encoding !== 'linear16') throw new Error('AssemblyAI is sent PCM only');
-    return new AssemblyAiStream(this.buildUrl(format), this.opts, format.sampleRate, cb);
+    if (format.encoding === 'opus') throw new Error('AssemblyAI is not sent containerized audio');
+    return new AssemblyAiStream(
+      this.buildUrl(format),
+      this.opts,
+      droppableAudioBytes(format, MAX_PENDING_SECONDS)!,
+      cb,
+    );
   }
 }
 
@@ -90,15 +97,13 @@ class AssemblyAiStream implements AsrStream {
   private sessionId: string | undefined;
   private lastError: ProviderErrorDetail | undefined;
   private done = false;
-  private readonly maxPendingBytes: number;
 
   constructor(
     url: string,
     opts: AssemblyAiOptions,
-    sampleRate: number,
+    private readonly maxPendingBytes: number,
     private readonly cb: AsrCallbacks,
   ) {
-    this.maxPendingBytes = sampleRate * 2 * MAX_PENDING_SECONDS; // 16-bit mono
     this.ws = new WebSocket(url, { headers: { Authorization: opts.apiKey ?? '' } });
     this.connectTimer = setTimeout(
       () => this.fail('asr_unavailable'),

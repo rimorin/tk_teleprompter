@@ -3,6 +3,11 @@ import type { TrackingState } from '@teleprompter/shared';
 import type { AsrMetrics } from '../net/asrClient';
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+const AUDIO_FORMATS = {
+  linear16: 'PCM',
+  opus: 'Opus (recorded)',
+  opus_packets: 'Opus packets',
+} as const;
 
 /** Development aid: current matcher inputs and decision. Hidden unless toggled (D). */
 export function DiagnosticsPanel({
@@ -27,6 +32,8 @@ export function DiagnosticsPanel({
           {metrics?.delayMs != null ? seconds(metrics.delayMs) : '–'}
           {metrics && ` · upload queue ${seconds(metrics.backlogMs)}`}
         </dd>
+        <dt>Audio</dt>
+        <dd>{metrics ? AUDIO_FORMATS[metrics.encoding] : '–'}</dd>
         <dt>Status</dt>
         <dd>{state.status}</dd>
         <dt>Confirmed / tentative</dt>

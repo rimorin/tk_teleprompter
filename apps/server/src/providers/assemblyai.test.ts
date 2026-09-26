@@ -149,6 +149,17 @@ describe('AssemblyAiProvider', () => {
     });
   });
 
+  it('asks for raw Opus when sent Opus packets', () => {
+    const url = new URL(
+      new AssemblyAiProvider({
+        apiKey: 'k',
+        url: 'wss://streaming.us.assemblyai.com/v3/ws',
+        model: 'universal-streaming-english',
+      }).buildUrl({ encoding: 'opus_packets', sampleRate: 16000, channels: 1, language: 'en' }),
+    );
+    expect(url.searchParams.get('encoding')).toBe('opus');
+  });
+
   it('backs off when AssemblyAI refuses a session for its rate limit (also close 1008)', async () => {
     const url = await fakeServer((ws) => {
       ws.send(

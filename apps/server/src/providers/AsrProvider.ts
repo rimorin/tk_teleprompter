@@ -1,7 +1,8 @@
-import type {
-  AudioFormat as ClientAudioFormat,
-  ErrorCode,
-  TranscriptWord,
+import {
+  OPUS_PACKETS_BITS_PER_SECOND,
+  type AudioFormat as ClientAudioFormat,
+  type ErrorCode,
+  type TranscriptWord,
 } from '@teleprompter/shared';
 
 /** Provider-independent transcript result; the session adds sessionId and sequence. */
@@ -14,6 +15,17 @@ export type ProviderTranscript = {
 };
 
 export type AudioFormat = ClientAudioFormat & { language: string };
+
+/**
+ * Bytes in `seconds` of audio that can be dropped while a provider connects: PCM, or Opus
+ * packets (at twice their nominal bitrate, since packet sizes vary). Null for containerized
+ * audio, which can't be dropped without corrupting the stream.
+ */
+export function droppableAudioBytes(format: ClientAudioFormat, seconds: number): number | null {
+  if (format.encoding === 'linear16') return format.sampleRate * 2 * seconds; // 16-bit mono
+  if (format.encoding === 'opus_packets') return (OPUS_PACKETS_BITS_PER_SECOND / 8) * 2 * seconds;
+  return null;
+}
 
 export type ProviderErrorDetail = Record<string, string | number | undefined>;
 

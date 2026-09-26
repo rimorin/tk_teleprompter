@@ -5,6 +5,7 @@ import {
   type AudioFormat,
 } from '@teleprompter/shared';
 import workletUrl from './pcm-worklet.ts?worker&url';
+import { canEncodeOpusPackets, createOpusPacketizer } from './opusPackets';
 
 type MicErrorCode =
   | 'insecure_context'
@@ -45,12 +46,19 @@ const OPUS_TYPES = [
 ] as const;
 
 /**
- * The format to capture in: Opus (about 8x less upload than PCM, which matters on mobile data)
- * when the browser can record it and the server's provider accepts it, otherwise 16 kHz PCM.
+ * The format to capture in, of those the server's provider `accepts`: Opus packets from the
+ * browser's own encoder (16x less upload than PCM, which matters on mobile data, and recognized
+ * as fast as PCM), else Opus recorded by MediaRecorder (8x less, but slower to recognize), else
+ * 16 kHz PCM.
  */
-export function pickAudioFormat(opusAccepted = true): AudioFormat {
+export async function pickAudioFormat(
+  accepts: readonly AudioFormat['encoding'][],
+): Promise<AudioFormat> {
+  if (accepts.includes('opus_packets') && (await canEncodeOpusPackets())) {
+    return { encoding: 'opus_packets', sampleRate: AUDIO_SAMPLE_RATE, channels: 1 };
+  }
   if (
-    opusAccepted &&
+    accepts.includes('opus') &&
     typeof MediaRecorder !== 'undefined' &&
     typeof MediaRecorder.isTypeSupported === 'function'
   ) {
@@ -62,7 +70,10 @@ export function pickAudioFormat(opusAccepted = true): AudioFormat {
 
 type Handlers = {
   format: AudioFormat;
-  /** One ~100 ms chunk: mono 16 kHz PCM16 (little-endian), or the next piece of the Opus stream. */
+  /**
+   * One ~100 ms chunk: mono 16 kHz PCM16 (little-endian), its Opus packets, or the next piece of
+   * the Opus stream.
+   */
   onChunk: (chunk: ArrayBuffer) => void;
   /** The device went away (unplugged, permission revoked). Capture has stopped. */
   onEnded: () => void;
@@ -86,7 +97,7 @@ export async function startMicCapture({ format, onChunk, onEnded }: Handlers): P
   if (!window.isSecureContext) throw new MicError('insecure_context');
   if (
     !navigator.mediaDevices?.getUserMedia ||
-    (format.encoding === 'linear16' && typeof AudioWorkletNode === 'undefined')
+    (format.encoding !== 'opus' && typeof AudioWorkletNode === 'undefined')
   ) {
     throw new MicError('unsupported');
   }
@@ -111,7 +122,9 @@ export async function startMicCapture({ format, onChunk, onEnded }: Handlers): P
   const capture =
     format.encoding === 'linear16'
       ? await startPcm(stream, onChunk)
-      : startOpus(stream, format.container, onChunk);
+      : format.encoding === 'opus_packets'
+        ? await startOpusPackets(stream, onChunk, onEnded)
+        : startOpus(stream, format.container, onChunk);
   for (const track of stream.getAudioTracks()) {
     track.addEventListener('ended', () => {
       void capture.stop();
@@ -173,6 +186,34 @@ function startOpus(
     begin();
   };
   return { stop, restart };
+}
+
+/** Captures PCM (below) and encodes it into Opus packets. */
+async function startOpusPackets(
+  stream: MediaStream,
+  onChunk: (chunk: ArrayBuffer) => void,
+  onEnded: () => void,
+): Promise<MicCapture> {
+  let packetizer: ReturnType<typeof createOpusPacketizer>;
+  try {
+    packetizer = createOpusPacketizer(onChunk, () => {
+      void capture.stop();
+      onEnded();
+    });
+  } catch {
+    for (const track of stream.getTracks()) track.stop();
+    throw new MicError('unsupported');
+  }
+  const pcm = await startPcm(stream, (chunk) => packetizer.push(chunk));
+  const capture: MicCapture = {
+    stop: async () => {
+      await pcm.stop();
+      await packetizer.close();
+    },
+    // Each packet decodes on its own, so a new session needs no fresh stream header.
+    restart: () => {},
+  };
+  return capture;
 }
 
 /** Captures through an AudioWorklet that downmixes and resamples to 16 kHz PCM16. */

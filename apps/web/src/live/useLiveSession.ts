@@ -233,7 +233,8 @@ export function useLiveSession(handlers: Handlers) {
       return 'needs_code';
     }
     const provider = resolveProvider(health.asr.providers, loadProviderChoice());
-    const format = pickAudioFormat(provider?.encodings.includes('opus') ?? true);
+    // Older servers don't list encodings: they take PCM and containerized Opus.
+    const format = await pickAudioFormat(provider?.encodings ?? ['linear16', 'opus']);
     const session = { format, accessCode, provider: provider?.name };
     sessionRef.current = session;
     // Connect while the microphone starts.

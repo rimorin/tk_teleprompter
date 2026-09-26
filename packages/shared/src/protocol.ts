@@ -8,6 +8,11 @@ export const AUDIO_SAMPLE_RATE = 16_000;
 export const AUDIO_FRAME_MS = 100;
 /** Target bitrate for compressed (Opus) audio: ~8x smaller than PCM, ample for speech. */
 export const OPUS_BITS_PER_SECOND = 32_000;
+/**
+ * Bitrate for Opus packets from the browser's own encoder: 16x smaller than PCM, and recognized
+ * as quickly as PCM by both providers (measured; WebM Opus was ~0.45 s slower on Deepgram).
+ */
+export const OPUS_PACKETS_BITS_PER_SECOND = 16_000;
 /** Largest binary audio frame the server accepts (1 s of PCM, well above one 100 ms frame). */
 export const MAX_AUDIO_FRAME_BYTES = AUDIO_SAMPLE_RATE * 2;
 
@@ -19,8 +24,9 @@ export const MAX_AUDIO_FRAME_BYTES = AUDIO_SAMPLE_RATE * 2;
 export const ACK_INTERVAL_MS = 250;
 
 /**
- * Audio the client streams: raw PCM, or Opus in a container (the browser's MediaRecorder output).
- * Containerized chunks are one continuous stream and must never be dropped or reordered.
+ * Audio the client streams: raw PCM, Opus in a container (the browser's MediaRecorder output), or
+ * raw Opus packets (WebCodecs; framed as in opusFrames.ts). Containerized chunks are one
+ * continuous stream and must never be dropped or reordered.
  */
 export const AudioFormat = z.discriminatedUnion('encoding', [
   z.object({
@@ -29,6 +35,11 @@ export const AudioFormat = z.discriminatedUnion('encoding', [
     channels: z.literal(1),
   }),
   z.object({ encoding: z.literal('opus'), container: z.enum(['webm', 'ogg']) }),
+  z.object({
+    encoding: z.literal('opus_packets'),
+    sampleRate: z.number().int().min(8_000).max(48_000),
+    channels: z.literal(1),
+  }),
 ]);
 export type AudioFormat = z.infer<typeof AudioFormat>;
 
@@ -143,7 +154,12 @@ export const HealthResponse = z.object({
      * audio encodings each accepts. Older servers omit it: they offer Deepgram, which takes both.
      */
     providers: z
-      .array(z.object({ name: z.string(), encodings: z.array(z.enum(['linear16', 'opus'])) }))
+      .array(
+        z.object({
+          name: z.string(),
+          encodings: z.array(z.enum(['linear16', 'opus', 'opus_packets'])),
+        }),
+      )
       .optional(),
   }),
   access: z.object({ codeRequired: z.boolean() }),

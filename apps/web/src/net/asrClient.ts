@@ -2,6 +2,7 @@ import {
   AUDIO_FRAME_MS,
   AUDIO_SAMPLE_RATE,
   OPUS_BITS_PER_SECOND,
+  OPUS_PACKETS_BITS_PER_SECOND,
   PROTOCOL_VERSION,
   ServerMessage,
   type AudioFormat,
@@ -42,6 +43,8 @@ export type AsrMetrics = {
   delayMs: number | null;
   /** How long the oldest audio not yet received by the server has been waiting. */
   backlogMs: number;
+  /** The audio format being sent. */
+  encoding: AudioFormat['encoding'];
 };
 
 export type AsrClientError =
@@ -260,12 +263,16 @@ export class AsrClient {
     const sorted = [...this.delays].sort((a, b) => a - b);
     const now = performance.now();
     const bytesPerSecond =
-      this.audio.encoding === 'linear16' ? this.audio.sampleRate * 2 : OPUS_BITS_PER_SECOND / 8;
+      this.audio.encoding === 'linear16'
+        ? this.audio.sampleRate * 2
+        : (this.audio.encoding === 'opus' ? OPUS_BITS_PER_SECOND : OPUS_PACKETS_BITS_PER_SECOND) /
+          8;
     return {
       delayMs: sorted.length ? sorted[Math.floor(sorted.length / 2)]! : null,
       backlogMs: this.acksSeen
         ? this.uploadLag(now)
         : ((this.ws?.bufferedAmount ?? 0) / bytesPerSecond) * 1000,
+      encoding: this.audio.encoding,
     };
   }
 

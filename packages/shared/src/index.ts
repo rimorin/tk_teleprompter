@@ -1,4 +1,5 @@
 export * from './protocol';
+export * from './opusFrames';
 export * from './types';
 export * from './tokenizer';
 export * from './matcher/context';

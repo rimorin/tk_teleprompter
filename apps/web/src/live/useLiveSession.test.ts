@@ -196,7 +196,7 @@ describe('useLiveSession reconnect', () => {
     saveProviderChoice('assemblyai');
     const { hook } = setup();
     await startListening(hook);
-    expect(vi.mocked(pickAudioFormat)).toHaveBeenLastCalledWith(false);
+    expect(vi.mocked(pickAudioFormat)).toHaveBeenLastCalledWith(['linear16']);
     expect(JSON.parse(lastSocket().sent[0] as string).provider).toBe('assemblyai');
     window.localStorage.clear();
   });
