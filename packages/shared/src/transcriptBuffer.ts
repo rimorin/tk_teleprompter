@@ -99,8 +99,9 @@ export function applyTranscriptEvent(
 
 /**
  * Words spoken after a watermark. The watermark marks everything heard up to a moment (e.g. a
- * manual reposition): final words before `finalIndex`, plus the first `skipCount` words of the
- * segment that was still interim at that moment (they will be finalized later).
+ * manual reposition): final words before `finalIndex`, plus the `skipCount` words that were
+ * still interim at that moment (they will be finalized later, possibly split across several
+ * segments that start at or after `skipOrder`).
  */
 export type Watermark = { finalIndex: number; skipOrder: number | null; skipCount: number };
 
@@ -118,16 +119,18 @@ export function wordsAfter(
 ): { finalWords: string[]; interimWords: string[] } {
   const finalWords: string[] = [];
   let skipped = 0;
+  const skips = (order: number) =>
+    mark.skipOrder !== null && order >= mark.skipOrder && skipped < mark.skipCount;
   for (let i = Math.max(0, mark.finalIndex - buf.dropped); i < buf.finalWords.length; i++) {
-    if (buf.finalOrders[i] === mark.skipOrder && skipped < mark.skipCount) {
+    if (skips(buf.finalOrders[i]!)) {
       skipped++;
       continue;
     }
     finalWords.push(buf.finalWords[i]!);
   }
   let interimWords = buf.interim ? [...buf.interim.words] : [];
-  if (buf.interim && buf.interim.order === mark.skipOrder) {
-    interimWords = interimWords.slice(mark.skipCount);
+  if (buf.interim && skips(buf.interim.order)) {
+    interimWords = interimWords.slice(mark.skipCount - skipped);
   }
   return { finalWords, interimWords };
 }
