@@ -168,7 +168,11 @@ The script follows you. Tap any word to jump there yourself.
 - Keeps the screen on while you present.
 - Works in portrait and landscape.
 - Add it to your home screen like an app.
-- Light on mobile data: it sends compressed audio (about 32 kbit/s) where the browser supports it.
+- Light on mobile data: it sends compressed audio, about 16 kbit/s on current Safari and Chrome,
+  and keeps up even on a weak signal.
+- Two speech services, when the server has keys for both: **Fastest** (AssemblyAI) confirms words
+  about a second sooner than **Standard** (Deepgram), which uses less data on older browsers (on
+  current Safari and Chrome both use about 16 kbit/s). Choose in Settings.
 
 </td>
 <td width="50%" valign="top">
@@ -201,7 +205,7 @@ flowchart LR
         script["Your script<br/>stays here"] --> place["Finds your place"]
     end
     relay["App server<br/>stores nothing"]
-    dg["Deepgram<br/>speech to text"]
+    dg["Speech service<br/>Deepgram or AssemblyAI"]
 
     mic -- "audio, only while<br/>the mic is on" --> relay --> dg
     dg -- "words heard" --> relay -- "words heard" --> place
@@ -209,18 +213,20 @@ flowchart LR
 
 - **Your script never leaves your browser.** It is saved on your device only. `.docx` files are
   read on your device too.
-- **Audio is sent only while the microphone is on.** It goes through the app server to
-  [Deepgram](https://deepgram.com), which turns it into text. The app opts out of Deepgram using
-  it to train models.
+- **Audio is sent only while the microphone is on.** It goes through the app server to the speech
+  service, [Deepgram](https://deepgram.com) or [AssemblyAI](https://www.assemblyai.com), which
+  turns it into text. The app opts out of Deepgram using it to train models. AssemblyAI keeps no
+  audio or text once whoever runs the server turns off model training in its dashboard.
 - **The server stores nothing.** No audio, no text, and it never logs what you say.
-- **The Deepgram API key stays on the server.** Your browser never sees it.
+- **The API keys stay on the server.** Your browser never sees them.
 
 ---
 
 ## Quick start
 
 **You need:** Node.js 22 or newer, [pnpm](https://pnpm.io) 11, and a
-[Deepgram](https://deepgram.com) API key for voice following.
+[Deepgram](https://deepgram.com) or [AssemblyAI](https://www.assemblyai.com) API key (or both)
+for voice following.
 
 > [!TIP]
 > No key yet? Manual mode and practice mode work without one.
@@ -229,7 +235,7 @@ flowchart LR
 git clone https://github.com/rimorin/tk_teleprompter.git && cd tk_teleprompter
 pnpm install
 
-cp apps/server/.env.example apps/server/.env   # then set DEEPGRAM_API_KEY
+cp apps/server/.env.example apps/server/.env   # then set DEEPGRAM_API_KEY and/or ASSEMBLYAI_API_KEY
 pnpm dev                                        # web on :5173, server on :8787
 ```
 
@@ -261,18 +267,18 @@ You will see a certificate warning once. That is expected for a local test certi
 
 ## Deploying
 
-Two containers: **`web`** (public) and **`api`** (private, holds the Deepgram key). They run on
+Two containers: **`web`** (public) and **`api`** (private, holds the API keys). They run on
 any container host (Docker Compose, Kubernetes, Railway, Render, Fly.io…), or put the front end
 on a static host and run the API elsewhere.
 
 ```bash
-cp apps/server/.env.example apps/server/.env    # DEEPGRAM_API_KEY, APP_ACCESS_CODE
+cp apps/server/.env.example apps/server/.env    # API key(s), APP_ACCESS_CODE
 docker compose up --build                        # http://localhost:8080
 ```
 
 > [!IMPORTANT]
 > For a public site, set `APP_ACCESS_CODE`. Speakers enter it once on each device. This stops
-> strangers from using up your Deepgram credit. Limits on sessions, sessions per IP and session
+> strangers from using up your speech service credit. Limits on sessions, sessions per IP and session
 > length are built in too.
 
 **[DEPLOYMENT.md](DEPLOYMENT.md)** has the requirements, every setting, and a step-by-step guide
@@ -295,7 +301,7 @@ flowchart LR
     subgraph backend["Server (Fastify)"]
         relay["Relay<br/>access code · limits"]
     end
-    dg["Deepgram<br/>Nova-3"]
+    dg["Deepgram Nova-3<br/>or AssemblyAI"]
 
     enc -- "audio · WebSocket" --> relay --> dg
     dg -- "words heard" --> relay -- "words heard" --> match
@@ -303,15 +309,17 @@ flowchart LR
 
 ### One sentence, step by step
 
-Deepgram sends two kinds of results. A **guess** comes quickly and may change. A **final** result
-comes a moment later and does not change. The app uses each one differently.
+The speech service sends two kinds of results. A **guess** comes quickly and may change. A
+**final** result comes a moment later and does not change. The app uses each one differently.
+Deepgram finalizes a phrase at each short pause; AssemblyAI finalizes word by word, so its final
+words arrive about a second sooner.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor You
     participant App as Browser
-    participant DG as Deepgram (via the server)
+    participant DG as Speech service (via the server)
 
     You->>App: "Today I want to share…"
     App->>DG: audio, every 100 ms
@@ -339,7 +347,7 @@ flowchart TD
 ```
 
 - It is a **pure function**: `update(context, state, transcriptEvent) → state`. It has no
-  network or Deepgram code, so it is easy to test.
+  network or speech service code, so it is easy to test.
 - **Far jumps are careful.** Quoting a later part of your talk ("later I'll show you…") must not
   move the script, so a jump needs about 14 agreeing words. The **Jump to …** button appears much
   sooner, after about 5 words, so a real skip is still one tap away.
@@ -354,7 +362,7 @@ repeats) and knows the true position. Tests use it to measure how closely the ma
 ```
 apps/
   web/        React + Vite front end (presenter, setup, audio capture)
-  server/     Fastify WebSocket relay, Deepgram adapter, access control
+  server/     Fastify WebSocket relay, Deepgram and AssemblyAI adapters, access control
 packages/
   shared/     Message formats, tokenizer, matcher, simulator (used by both apps)
 docs/         Screenshots
@@ -365,9 +373,9 @@ compose.yaml  Run the production images with Docker Compose
 
 ### Tech stack
 
-TypeScript (strict) · React 19 · Vite · Fastify 5 · `ws` · Zod · MediaRecorder (Opus) and Web
-Audio `AudioWorklet` · Deepgram streaming speech-to-text (Nova-3) · Caddy · Vitest + Testing
-Library · pnpm workspaces.
+TypeScript (strict) · React 19 · Vite · Fastify 5 · `ws` · Zod · Web Audio `AudioWorklet`,
+WebCodecs `AudioEncoder` and MediaRecorder (Opus) · Deepgram (Nova-3) and AssemblyAI
+(Universal-Streaming) speech-to-text · Caddy · Vitest + Testing Library · pnpm workspaces.
 
 ## Development
 
@@ -387,8 +395,9 @@ Server settings (API key, access code, limits, allowed origins) are explained in
 
 - **English only for now.** The design works for other languages, but it has not been tuned for
   them yet.
-- **It follows phrase by phrase,** so the highlight can be a little behind your voice. How much
-  depends on your network and on Deepgram.
+- **The highlight can be a little behind your voice.** How much depends on your network and on
+  the speech service: with Deepgram, words are locked in at each short pause; with AssemblyAI,
+  about half a second after you say them.
 - **Very noisy rooms and heavy rewording** make it less reliable. It stays put rather than guess,
   and a tap always puts you back on track.
 - **On iPhone and iPad, switching apps or locking the screen stops the microphone.** Start it

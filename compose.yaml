@@ -1,7 +1,7 @@
 # Runs the production images on any Docker host (a VPS, a home server, your laptop):
 #   web (published)  ──private network──▶  api (not published)
 #
-#   cp apps/server/.env.example apps/server/.env   # set DEEPGRAM_API_KEY, APP_ACCESS_CODE
+#   cp apps/server/.env.example apps/server/.env   # set an API key and APP_ACCESS_CODE
 #   PUBLIC_ORIGIN=https://prompter.example.com docker compose up -d --build
 #
 # Put a TLS-terminating proxy (or your platform's load balancer) in front of port 8080;

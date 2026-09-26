@@ -7,12 +7,12 @@ const KEY = 'teleprompter.asrProvider.v1';
 const DESCRIPTIONS: Record<string, { label: string; detail: string; vendor: string }> = {
   assemblyai: {
     label: 'Fastest',
-    detail: 'Words are confirmed about a second sooner. Uses more data.',
+    detail: 'Words are confirmed about a second sooner. Uses more data on older browsers.',
     vendor: 'AssemblyAI',
   },
   deepgram: {
-    label: 'Data saver',
-    detail: 'Uploads about 8 times less audio.',
+    label: 'Standard',
+    detail: 'Uses less data on older browsers; the same on current Safari and Chrome.',
     vendor: 'Deepgram',
   },
 };

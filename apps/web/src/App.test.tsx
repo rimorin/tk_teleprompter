@@ -390,14 +390,14 @@ describe('App (speech service)', () => {
     render(<App />);
     await user.click(screen.getByRole('button', { name: /try the sample/i }));
     // The setup screen names the current choice and says where to change it.
-    await user.click(await screen.findByRole('button', { name: 'Voice ready · Data saver' }));
+    await user.click(await screen.findByRole('button', { name: 'Voice ready · Standard' }));
     expect(screen.getByText(/change it in settings while presenting/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /start presenting/i }));
     await user.click(screen.getByRole('button', { name: 'Settings' }));
     const panel = screen.getByRole('dialog', { name: 'Settings' });
     const picker = await within(panel).findByRole('radiogroup', { name: 'Speech service' });
-    expect(within(picker).getByRole('radio', { name: /data saver/i })).toBeChecked();
+    expect(within(picker).getByRole('radio', { name: /standard/i })).toBeChecked();
     await user.click(within(picker).getByRole('radio', { name: /fastest/i }));
     expect(JSON.parse(window.localStorage.getItem('teleprompter.asrProvider.v1')!)).toBe(
       'assemblyai',

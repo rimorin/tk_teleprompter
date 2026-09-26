@@ -248,7 +248,7 @@ export function About() {
           </span>
           <div className="pnode">
             <AudioLines size={18} />
-            <span>Deepgram</span>
+            <span>Speech service</span>
             <small>Turns speech into text</small>
           </div>
         </div>

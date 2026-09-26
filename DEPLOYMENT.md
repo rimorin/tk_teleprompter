@@ -18,10 +18,10 @@ environment variables.
 
 Two services, built from this repository:
 
-| Service | Image                    | What it does                                                                                                                             |
-| ------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **api** | `apps/server/Dockerfile` | Fastify server: relays microphone audio to the speech provider and returns transcripts. Holds `DEEPGRAM_API_KEY`. Health: `GET /health`. |
-| **web** | `apps/web/Dockerfile`    | Caddy: serves the front end, adds security headers, and proxies `/ws` and `/health` to **api**. Health: `GET /healthz`.                  |
+| Service | Image                    | What it does                                                                                                                                                         |
+| ------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **api** | `apps/server/Dockerfile` | Fastify server: relays microphone audio to the speech provider and returns transcripts. Holds `DEEPGRAM_API_KEY` and/or `ASSEMBLYAI_API_KEY`. Health: `GET /health`. |
+| **web** | `apps/web/Dockerfile`    | Caddy: serves the front end, adds security headers, and proxies `/ws` and `/health` to **api**. Health: `GET /healthz`.                                              |
 
 Both images build from the repository root (`docker build -f apps/server/Dockerfile .`). Most
 platforms build them for you from the Git repository; nothing needs to be pushed to a registry.
@@ -234,9 +234,10 @@ Rules of thumb:
 
 - **Size:** a small instance (0.5 vCPU, 256 MB) comfortably serves dozens of simultaneous
   speakers.
-- **Bandwidth:** about 4 KB/s (≈ 32 kbit/s) per active microphone where the browser records
-  Opus (Chrome, Edge, Firefox, Android), or 32 KB/s (≈ 256 kbit/s) with the raw PCM fallback,
-  in each direction between browser → api → provider.
+- **Bandwidth,** per active microphone, in each direction between browser → api → provider:
+  about 2 KB/s (≈ 16 kbit/s) where the browser encodes Opus itself (WebCodecs: Safari 26+,
+  Chrome, Edge); 4 KB/s (≈ 32 kbit/s) where it can only record Opus with MediaRecorder (Deepgram
+  only); 32 KB/s (≈ 256 kbit/s) with the raw PCM fallback.
 - **App limits:** `MAX_CONCURRENT_SESSIONS` (default 10) caps everyone combined;
   `MAX_SESSIONS_PER_IP` (default 10) caps one network address. Speakers at the same venue or
   office usually share a public IP, so keep the per-IP limit at least your group size. Raise
@@ -245,8 +246,13 @@ Rules of thumb:
   pay-as-you-go (225 on Growth in North America), but **secondary projects on self-serve
   accounts are limited to one stream**: use a key from your primary project. See
   [Deepgram's rate limits](https://developers.deepgram.com/reference/api-rate-limits).
-- **Cost:** the provider bills per minute of streamed audio, so cost grows linearly with the
-  number of open microphones. `MAX_SESSION_MINUTES` (default 90) bounds forgotten sessions.
+  AssemblyAI limits how many sessions start per minute (5 on free accounts, 100 or more on paid
+  ones, rising automatically with use); a refused start backs off and retries like a busy
+  server. See [AssemblyAI's rate limits](https://www.assemblyai.com/docs/streaming/rate-limits).
+- **Cost:** Deepgram bills per minute of streamed audio; AssemblyAI bills for the time each
+  session is open (api ends it as soon as the microphone stops). Either way cost grows linearly
+  with the number of open microphones. `MAX_SESSION_MINUTES` (default 90) bounds forgotten
+  sessions.
 
 ## Verify a deployment
 
@@ -259,16 +265,17 @@ Rules of thumb:
 
 ## Troubleshooting
 
-| Symptom                                                                                          | Likely cause                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 502 on `/health` or the mic can't connect (topology A)                                           | `API_URL` is wrong, or api isn't listening (its log should show `Server listening at http://[::]:8080`)                                                                        |
-| `rejected websocket origin` in api logs                                                          | `ALLOWED_ORIGINS` doesn't exactly match the browser's origin (scheme, host, port; no trailing slash)                                                                           |
-| Setup page shows "Voice off" in topology B                                                       | `VITE_API_ORIGIN` wasn't set at build time, the API is unreachable, or its origin isn't in `ALLOWED_ORIGINS` (CORS)                                                            |
-| "Voice following is not set up on this server"                                                   | `DEEPGRAM_API_KEY` is missing on api                                                                                                                                           |
-| "The speech provider rejected the server's credentials"                                          | Invalid or expired Deepgram key                                                                                                                                                |
-| "The speech provider refused this session…"                                                      | Deepgram refused the request: out of credit (402), a bad setting (400), or audio it can't decode. The api's `provider error` log line has the status, `dgError` and request id |
-| Sessions drop after about a minute of silence                                                    | A proxy's idle or read timeout is too short for WebSockets                                                                                                                     |
-| Behind Cloudflare, one person's wrong codes lock out others, or everyone shares one per-IP limit | Set `CLIENT_IP_HEADERS=CF-Connecting-IP` and Cloudflare's ranges (see [Behind Cloudflare](#behind-cloudflare))                                                                 |
-| Per-IP limits hit everyone at once                                                               | `TRUST_PROXY` is off behind a proxy, so every client looks like the proxy's IP                                                                                                 |
-| “Voice following is busy right now” when a group starts at once                                  | `MAX_CONCURRENT_SESSIONS` or `MAX_SESSIONS_PER_IP` is below the group size (people on one network share an IP)                                                                 |
-| Only one speaker can use voice tracking at a time                                                | The Deepgram key belongs to a secondary self-serve project (limited to one stream); use a key from your primary project                                                        |
+| Symptom                                                                                          | Likely cause                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 502 on `/health` or the mic can't connect (topology A)                                           | `API_URL` is wrong, or api isn't listening (its log should show `Server listening at http://[::]:8080`)                                                                                                                                                                                                  |
+| `rejected websocket origin` in api logs                                                          | `ALLOWED_ORIGINS` doesn't exactly match the browser's origin (scheme, host, port; no trailing slash)                                                                                                                                                                                                     |
+| Setup page shows "Voice off" in topology B                                                       | `VITE_API_ORIGIN` wasn't set at build time, the API is unreachable, or its origin isn't in `ALLOWED_ORIGINS` (CORS)                                                                                                                                                                                      |
+| "Voice following is not set up on this server"                                                   | Neither `DEEPGRAM_API_KEY` nor `ASSEMBLYAI_API_KEY` is set on api                                                                                                                                                                                                                                        |
+| "The speech provider rejected the server's credentials"                                          | Invalid or expired key for the service in use                                                                                                                                                                                                                                                            |
+| "The speech provider refused this session…"                                                      | The provider refused the request. Deepgram: out of credit (402), a bad setting (400), or audio it can't decode. AssemblyAI: an invalid message or audio. The api's `provider error` log line has the details (status or close code, and `dgError` or AssemblyAI's `error`, with a request or session id) |
+| No **Voice** section in the presenter's Settings                                                 | Only one speech service has a key; set both to let presenters choose                                                                                                                                                                                                                                     |
+| Sessions drop after about a minute of silence                                                    | A proxy's idle or read timeout is too short for WebSockets                                                                                                                                                                                                                                               |
+| Behind Cloudflare, one person's wrong codes lock out others, or everyone shares one per-IP limit | Set `CLIENT_IP_HEADERS=CF-Connecting-IP` and Cloudflare's ranges (see [Behind Cloudflare](#behind-cloudflare))                                                                                                                                                                                           |
+| Per-IP limits hit everyone at once                                                               | `TRUST_PROXY` is off behind a proxy, so every client looks like the proxy's IP                                                                                                                                                                                                                           |
+| “Voice following is busy right now” when a group starts at once                                  | `MAX_CONCURRENT_SESSIONS` or `MAX_SESSIONS_PER_IP` is below the group size (people on one network share an IP)                                                                                                                                                                                           |
+| Only one speaker can use voice tracking at a time                                                | The Deepgram key belongs to a secondary self-serve project (limited to one stream); use a key from your primary project                                                                                                                                                                                  |

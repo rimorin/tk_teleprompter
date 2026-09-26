@@ -44,7 +44,8 @@ Define what success looks like, then iterate until it's checked.
 ## This project
 
 A voice-following teleprompter: the browser streams microphone audio through a Fastify relay
-to Deepgram, and a pure matcher in the browser keeps the speaker's place in their script.
+to a speech provider (Deepgram or AssemblyAI), and a pure matcher in the browser keeps the
+speaker's place in their script.
 User-facing docs: [README.md](README.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Commands
@@ -63,13 +64,14 @@ User-facing docs: [README.md](README.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
   simulator. Used by both apps.
 - `apps/web`: React + Vite front end (setup, presenter, AudioWorklet capture, WebSocket client)
   and its Caddy image.
-- `apps/server`: Fastify WebSocket relay, Deepgram adapter, access control and limits.
+- `apps/server`: Fastify WebSocket relay, Deepgram and AssemblyAI adapters, access control and
+  limits.
 - `deploy/`: optional platform-specific configs. Everything else stays platform-agnostic.
 
 ### Rules that must hold
 
 - **The matcher stays pure and provider-independent:** `update(ctx, state, event) → state`, with
-  no I/O and no Deepgram-specific shapes (normalize those in `apps/server/src/providers/`).
+  no I/O and no provider-specific shapes (normalize those in `apps/server/src/providers/`).
 - **Interim results move only the tentative cursor.** Only final results move the confirmed
   cursor, and it never jumps backward automatically; only a manual tap can move it back.
 - **Matcher thresholds live in `packages/shared/src/matcher/config.ts`.** For matcher changes,
