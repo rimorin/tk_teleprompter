@@ -59,6 +59,7 @@ function header(value: string | string[] | undefined): string | undefined {
 
 export class DeepgramProvider implements AsrProvider {
   readonly name = 'deepgram';
+  readonly encodings = ['linear16', 'opus'] as const;
   constructor(private readonly opts: DeepgramOptions) {}
 
   get configured(): boolean {

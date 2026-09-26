@@ -5,9 +5,19 @@ const EnvSchema = z.object({
   /** 127.0.0.1 for local dev; the container image sets '::' (all interfaces, IPv4 + IPv6). */
   HOST: z.string().default('127.0.0.1'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  /** Default speech provider; presenters can choose any other that has a key. */
+  ASR_PROVIDER: z.enum(['deepgram', 'assemblyai']).default('deepgram'),
   DEEPGRAM_API_KEY: z.string().trim().optional(),
   DEEPGRAM_URL: z.url().default('wss://api.deepgram.com/v1/listen'),
   DEEPGRAM_MODEL: z.string().default('nova-3'),
+  ASSEMBLYAI_API_KEY: z.string().trim().optional(),
+  /**
+   * The US endpoint: the default edge endpoint (streaming.assemblyai.com) opens as fast but takes
+   * ~0.6 s longer to start the session (measured from Singapore). streaming.eu keeps data in the EU.
+   */
+  ASSEMBLYAI_URL: z.url().default('wss://streaming.us.assemblyai.com/v3/ws'),
+  /** English-only, word-by-word finals; the Pro models finalize by turn. */
+  ASSEMBLYAI_MODEL: z.string().default('universal-streaming-english'),
   /** Comma-separated origins allowed to open the audio WebSocket. */
   ALLOWED_ORIGINS: z
     .string()
@@ -59,7 +69,9 @@ export type ServerConfig = {
   trustProxy: boolean | number | string;
   shutdownGraceMs: number;
   limits: SessionLimits;
+  asrProvider: z.infer<typeof EnvSchema>['ASR_PROVIDER'];
   deepgram: { apiKey: string | null; url: string; model: string };
+  assemblyai: { apiKey: string | null; url: string; model: string };
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -81,6 +93,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       maxAccessFailures: e.MAX_ACCESS_FAILURES,
       accessFailureWindowMs: e.ACCESS_FAILURE_WINDOW_MINUTES * 60_000,
     },
+    asrProvider: e.ASR_PROVIDER,
     deepgram: { apiKey: e.DEEPGRAM_API_KEY || null, url: e.DEEPGRAM_URL, model: e.DEEPGRAM_MODEL },
+    assemblyai: {
+      apiKey: e.ASSEMBLYAI_API_KEY || null,
+      url: e.ASSEMBLYAI_URL,
+      model: e.ASSEMBLYAI_MODEL,
+    },
   };
 }

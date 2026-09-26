@@ -25,7 +25,8 @@ const START_TIMEOUT_MS = 10_000;
 const PING_INTERVAL_MS = 5_000;
 
 type SessionRouteOptions = {
-  provider: AsrProvider;
+  /** The default provider first; session.start may name another. */
+  providers: readonly AsrProvider[];
   allowedOrigins: string[];
   access: AccessControl;
   /** Open sessions, so a shutdown can finalize them. */
@@ -55,7 +56,7 @@ export function registerSessionRoute(app: FastifyInstance, opts: SessionRouteOpt
       },
     },
     (socket, request) => {
-      const session = new Session(socket, opts.provider, opts.access, request.ip, request.log, {
+      const session = new Session(socket, opts.providers, opts.access, request.ip, request.log, {
         onClosed: () => opts.sessions.delete(session),
         findSession: (id) => [...opts.sessions].find((s) => s.id === id),
         pingIntervalMs: opts.pingIntervalMs ?? PING_INTERVAL_MS,
@@ -91,7 +92,7 @@ export class Session {
 
   constructor(
     private readonly socket: WebSocket,
-    private readonly provider: AsrProvider,
+    private readonly providers: readonly AsrProvider[],
     private readonly access: AccessControl,
     private readonly ip: string,
     parentLog: FastifyBaseLogger,
@@ -138,7 +139,12 @@ export class Session {
       if (this.state !== 'awaiting_start') return this.fail('bad_message');
       clearTimeout(this.startTimer);
       if (msg.v !== PROTOCOL_VERSION) return this.fail('unsupported_version');
-      if (!this.provider.configured) return this.fail('asr_not_configured');
+      const provider = msg.provider
+        ? this.providers.find((p) => p.name === msg.provider)
+        : this.providers[0];
+      if (!provider?.configured) return this.fail('asr_not_configured');
+      // Clients pick an encoding from /health; an older client may still send one it can't take.
+      if (!provider.encodings.includes(msg.audio.encoding)) return this.fail('bad_message');
       // The client lost its old connection: end that session now (and free its slot) instead of
       // waiting for the ping check to notice it.
       if (msg.replaces && msg.replaces !== this.id) {
@@ -160,7 +166,7 @@ export class Session {
         ACK_INTERVAL_MS,
       );
       const connectingSince = Date.now();
-      this.stream = this.provider.connect(
+      this.stream = provider.connect(
         { ...msg.audio, language: msg.language },
         {
           onOpen: () => {
@@ -177,6 +183,7 @@ export class Session {
               text: t.text,
               ...(t.words ? { words: t.words } : {}),
             }),
+          onWarning: (detail, message) => this.log.warn(detail, message),
           onError: (code, detail) => {
             // Status codes and provider request ids, to diagnose failures (fail() logs the code).
             if (detail) this.log.warn(detail, 'provider error');
@@ -196,10 +203,7 @@ export class Session {
           },
         },
       );
-      this.log.info(
-        { provider: this.provider.name, encoding: msg.audio.encoding },
-        'session started',
-      );
+      this.log.info({ provider: provider.name, encoding: msg.audio.encoding }, 'session started');
       return;
     }
 

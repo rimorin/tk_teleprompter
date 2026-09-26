@@ -8,9 +8,10 @@ dotenv.config({ quiet: true });
 async function main() {
   const config = loadConfig();
   const { app, shutdown } = await buildApp({ config });
-  if (!config.deepgram.apiKey) {
+  if (!config.deepgram.apiKey && !config.assemblyai.apiKey) {
     app.log.warn(
-      'DEEPGRAM_API_KEY is not set: live tracking is disabled (manual/simulated modes still work)',
+      'Neither DEEPGRAM_API_KEY nor ASSEMBLYAI_API_KEY is set: live tracking is disabled ' +
+        '(manual/simulated modes still work)',
     );
   }
   if (!config.limits.accessCode) {

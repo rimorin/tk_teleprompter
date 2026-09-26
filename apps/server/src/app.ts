@@ -4,6 +4,7 @@ import { MAX_AUDIO_FRAME_BYTES, PROTOCOL_VERSION, type HealthResponse } from '@t
 import { AccessControl } from './accessControl';
 import type { ServerConfig } from './config';
 import { isAllowedOrigin } from './origin';
+import { AssemblyAiProvider } from './providers/assemblyai';
 import { DeepgramProvider } from './providers/deepgram';
 import { registerSessionRoute, type Session } from './sessionSocket';
 
@@ -27,7 +28,12 @@ export async function buildApp({ config, pingIntervalMs }: AppOptions) {
         ? (_address: string, hop: number) => hop < (config.trustProxy as number)
         : config.trustProxy,
   });
-  const asr = new DeepgramProvider(config.deepgram);
+  // Every provider with credentials is offered; ASR_PROVIDER is the default (listed first) unless
+  // it has none and another does.
+  const all = [new DeepgramProvider(config.deepgram), new AssemblyAiProvider(config.assemblyai)];
+  const preferred = all.find((p) => p.name === config.asrProvider)!;
+  const asr = preferred.configured ? preferred : (all.find((p) => p.configured) ?? preferred);
+  const providers = [asr, ...all.filter((p) => p !== asr)];
   const access = new AccessControl(config.limits);
   const sessions = new Set<Session>();
 
@@ -43,12 +49,19 @@ export async function buildApp({ config, pingIntervalMs }: AppOptions) {
     return {
       ok: true,
       protocolVersion: PROTOCOL_VERSION,
-      asr: { provider: asr.name, configured: asr.configured },
+      asr: {
+        provider: asr.name,
+        configured: asr.configured,
+        encodings: [...asr.encodings],
+        providers: providers
+          .filter((p) => p.configured)
+          .map((p) => ({ name: p.name, encodings: [...p.encodings] })),
+      },
       access: { codeRequired: access.codeRequired },
     };
   });
   registerSessionRoute(app, {
-    provider: asr,
+    providers,
     allowedOrigins: config.allowedOrigins,
     access,
     sessions,

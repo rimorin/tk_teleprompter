@@ -43,6 +43,8 @@ const SessionStartMessage = z.object({
   accessCode: z.string().max(256).optional(),
   /** Session this one replaces after a lost connection; the server ends it at once. */
   replaces: z.string().max(64).optional(),
+  /** Speech provider (a name from /health `asr.providers`); the server's default when absent. */
+  provider: z.string().max(32).optional(),
 });
 
 const SessionStopMessage = z.object({ type: z.literal('session.stop') });
@@ -130,10 +132,21 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
 };
 
 /** Response of GET /health. */
+const AudioEncodings = z.enum(['linear16', 'opus']);
+
 export const HealthResponse = z.object({
   ok: z.boolean(),
   protocolVersion: z.number(),
-  asr: z.object({ provider: z.string(), configured: z.boolean() }),
+  asr: z.object({
+    provider: z.string(),
+    configured: z.boolean(),
+    /** Audio encodings the provider accepts. Older servers omit it: they accept both. */
+    encodings: z.array(AudioEncodings).optional(),
+    /** Providers the presenter can choose from (those with credentials), default first. */
+    providers: z
+      .array(z.object({ name: z.string(), encodings: z.array(AudioEncodings) }))
+      .optional(),
+  }),
   access: z.object({ codeRequired: z.boolean() }),
 });
 export type HealthResponse = z.infer<typeof HealthResponse>;

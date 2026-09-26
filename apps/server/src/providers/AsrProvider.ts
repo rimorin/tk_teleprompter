@@ -25,6 +25,8 @@ export type AsrCallbacks = {
    * for server logs (status codes, provider request ids; never audio, text or credentials).
    */
   onError: (code: ErrorCode, detail?: ProviderErrorDetail) => void;
+  /** Something worth a server log line that doesn't end the stream (same rules as `detail`). */
+  onWarning?: (detail: ProviderErrorDetail, message: string) => void;
   /** Stream ended. `expected` is true after an intentional close(). */
   onClose: (expected: boolean) => void;
 };
@@ -41,5 +43,7 @@ export interface AsrProvider {
   readonly name: string;
   /** False when credentials are missing; sessions then fail fast with asr_not_configured. */
   readonly configured: boolean;
+  /** Audio encodings the provider accepts (advertised on /health so clients pick one). */
+  readonly encodings: readonly ClientAudioFormat['encoding'][];
   connect(format: AudioFormat, callbacks: AsrCallbacks): AsrStream;
 }

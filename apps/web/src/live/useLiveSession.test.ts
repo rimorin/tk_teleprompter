@@ -7,19 +7,28 @@ import {
   RETRY_EVERY_MS,
   useLiveSession,
 } from './useLiveSession';
+import { pickAudioFormat } from '../audio/micCapture';
+import { saveProviderChoice } from './asrProvider';
 
 const mic = { stop: vi.fn(async () => {}), restart: vi.fn() };
 
 vi.mock('../audio/micCapture', () => ({
   MicError: class extends Error {},
-  pickAudioFormat: () => ({ encoding: 'opus', container: 'webm' }),
+  pickAudioFormat: vi.fn(() => ({ encoding: 'opus', container: 'webm' })),
   startMicCapture: vi.fn(async () => mic),
 }));
 vi.mock('../net/health', () => ({
   fetchHealth: async () => ({
     ok: true,
     protocolVersion: 1,
-    asr: { provider: 'deepgram', configured: true },
+    asr: {
+      provider: 'deepgram',
+      configured: true,
+      providers: [
+        { name: 'deepgram', encodings: ['linear16', 'opus'] },
+        { name: 'assemblyai', encodings: ['linear16'] },
+      ],
+    },
     access: { codeRequired: false },
   }),
 }));
@@ -181,6 +190,15 @@ describe('useLiveSession reconnect', () => {
     await act(async () => vi.advanceTimersByTime(RECONNECT_DELAYS_MS[0]!));
     act(() => lastSocket().open());
     expect(JSON.parse(lastSocket().sent[0] as string).replaces).toBe('s');
+  });
+
+  it('uses the speech provider chosen on this device, in a format it accepts', async () => {
+    saveProviderChoice('assemblyai');
+    const { hook } = setup();
+    await startListening(hook);
+    expect(vi.mocked(pickAudioFormat)).toHaveBeenLastCalledWith(false);
+    expect(JSON.parse(lastSocket().sent[0] as string).provider).toBe('assemblyai');
+    window.localStorage.clear();
   });
 
   it('acts on the phone going offline and online at once', async () => {

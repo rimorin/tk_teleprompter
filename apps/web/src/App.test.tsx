@@ -359,3 +359,44 @@ describe('App (access code)', () => {
     );
   });
 });
+
+describe('App (speech service)', () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('lets the presenter choose the speech service when the server offers several', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              ok: true,
+              protocolVersion: 1,
+              asr: {
+                provider: 'deepgram',
+                configured: true,
+                encodings: ['linear16', 'opus'],
+                providers: [
+                  { name: 'deepgram', encodings: ['linear16', 'opus'] },
+                  { name: 'assemblyai', encodings: ['linear16'] },
+                ],
+              },
+              access: { codeRequired: false },
+            }),
+          ),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    await user.click(await screen.findByRole('button', { name: /voice ready/i }));
+    const picker = screen.getByRole('radiogroup', { name: 'Speech service' });
+    expect(within(picker).getByRole('radio', { name: 'Deepgram' })).toBeChecked();
+    await user.click(within(picker).getByRole('radio', { name: 'AssemblyAI' }));
+    expect(JSON.parse(window.localStorage.getItem('teleprompter.asrProvider.v1')!)).toBe(
+      'assemblyai',
+    );
+    expect(screen.getByText(/sent through this app’s server to AssemblyAI/)).toBeInTheDocument();
+  });
+});

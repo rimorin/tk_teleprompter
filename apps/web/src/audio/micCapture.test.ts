@@ -20,6 +20,15 @@ describe('pickAudioFormat', () => {
     vi.stubGlobal('MediaRecorder', undefined);
     expect(pickAudioFormat()).toEqual({ encoding: 'linear16', sampleRate: 16000, channels: 1 });
   });
+
+  it('uses PCM when the server does not accept Opus', () => {
+    stubRecorder(['audio/webm;codecs=opus']);
+    expect(pickAudioFormat(false)).toEqual({
+      encoding: 'linear16',
+      sampleRate: 16000,
+      channels: 1,
+    });
+  });
 });
 
 describe('startMicCapture', () => {

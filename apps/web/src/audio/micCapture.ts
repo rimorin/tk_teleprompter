@@ -46,10 +46,14 @@ const OPUS_TYPES = [
 
 /**
  * The format to capture in: Opus (about 8x less upload than PCM, which matters on mobile data)
- * when the browser can record it, otherwise 16 kHz PCM.
+ * when the browser can record it and the server's provider accepts it, otherwise 16 kHz PCM.
  */
-export function pickAudioFormat(): AudioFormat {
-  if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+export function pickAudioFormat(opusAccepted = true): AudioFormat {
+  if (
+    opusAccepted &&
+    typeof MediaRecorder !== 'undefined' &&
+    typeof MediaRecorder.isTypeSupported === 'function'
+  ) {
     const opus = OPUS_TYPES.find((t) => MediaRecorder.isTypeSupported(t.mimeType));
     if (opus) return { encoding: 'opus', container: opus.container };
   }

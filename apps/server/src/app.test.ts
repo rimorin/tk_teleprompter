@@ -124,6 +124,8 @@ async function setup(env: Record<string, string | undefined> = {}, pingIntervalM
     LOG_LEVEL: 'silent',
     DEEPGRAM_API_KEY: API_KEY,
     DEEPGRAM_URL: upstream.url,
+    // Both providers use the fake; tests tell them apart by the query parameters.
+    ASSEMBLYAI_URL: upstream.url,
     ...env,
   } as NodeJS.ProcessEnv);
   const { app, shutdown } = await buildApp({ config, pingIntervalMs });
@@ -159,9 +161,81 @@ describe('GET /health', () => {
     expect(res.json()).toEqual({
       ok: true,
       protocolVersion: 1,
-      asr: { provider: 'deepgram', configured: false },
+      asr: {
+        provider: 'deepgram',
+        configured: false,
+        encodings: ['linear16', 'opus'],
+        providers: [],
+      },
       access: { codeRequired: false },
     });
+  });
+
+  it('offers every provider with a key, the default first, with the encodings each takes', async () => {
+    const { app } = await setup({ ASR_PROVIDER: 'assemblyai', ASSEMBLYAI_API_KEY: API_KEY });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    expect(res.json().asr).toEqual({
+      provider: 'assemblyai',
+      configured: true,
+      encodings: ['linear16'],
+      providers: [
+        { name: 'assemblyai', encodings: ['linear16'] },
+        { name: 'deepgram', encodings: ['linear16', 'opus'] },
+      ],
+    });
+  });
+
+  it('defaults to a provider that has a key when ASR_PROVIDER has none', async () => {
+    const { app } = await setup({ ASR_PROVIDER: 'assemblyai' });
+    const res = await app.inject({ method: 'GET', url: '/health' });
+    expect(res.json().asr.provider).toBe('deepgram');
+    expect(res.json().asr.configured).toBe(true);
+  });
+});
+
+describe('provider choice', () => {
+  const startWith = (provider: string) => JSON.stringify({ ...JSON.parse(start()), provider });
+
+  it('connects to the provider the client names, or the default', async () => {
+    const { wsUrl, upstream } = await setup({ ASSEMBLYAI_API_KEY: API_KEY });
+    (await connectClient(wsUrl)).ws.send(startWith('assemblyai'));
+    await until(() => upstream.connections.length === 1, 'assemblyai connection');
+    expect(upstream.connections[0]!.req.url).toContain('speech_model=');
+    (await connectClient(wsUrl)).ws.send(start());
+    await until(() => upstream.connections.length === 2, 'default connection');
+    expect(upstream.connections[1]!.req.url).toContain('model=nova-3');
+  });
+
+  it('refuses a provider that is unknown or has no key', async () => {
+    const { wsUrl, upstream } = await setup();
+    for (const name of ['assemblyai', 'nope']) {
+      const client = await connectClient(wsUrl);
+      client.ws.send(startWith(name));
+      const err = await client.waitFor((m) => m.type === 'session.error', 'session.error');
+      expect(err).toMatchObject({ code: 'asr_not_configured' });
+    }
+    expect(upstream.connections).toHaveLength(0);
+  });
+});
+
+describe('audio encodings', () => {
+  it('refuses an encoding the provider does not accept, before contacting it', async () => {
+    const { wsUrl, upstream } = await setup({
+      ASR_PROVIDER: 'assemblyai',
+      ASSEMBLYAI_API_KEY: API_KEY,
+    });
+    const client = await connectClient(wsUrl);
+    client.ws.send(
+      JSON.stringify({
+        type: 'session.start',
+        v: PROTOCOL_VERSION,
+        language: 'en',
+        audio: { encoding: 'opus', container: 'webm' },
+      }),
+    );
+    const err = await client.waitFor((m) => m.type === 'session.error', 'session.error');
+    expect(err).toMatchObject({ code: 'bad_message' });
+    expect(upstream.connections).toHaveLength(0);
   });
 });
 

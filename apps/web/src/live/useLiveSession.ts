@@ -5,6 +5,7 @@ import { AsrClient, type AsrClientHandlers, type AsrMetrics } from '../net/asrCl
 import { endpoints } from '../net/endpoints';
 import { fetchHealth } from '../net/health';
 import { loadAccessCode, saveAccessCode } from './accessCode';
+import { loadProviderChoice, resolveProvider } from './asrProvider';
 
 type LivePhase = 'off' | 'starting' | 'connecting' | 'listening' | 'reconnecting' | 'stopping';
 
@@ -66,7 +67,11 @@ export function useLiveSession(handlers: Handlers) {
     busy: number;
   }>({ timer: null, attempt: 0, timeouts: 0, busy: 0 });
   /** Settings reused by every connection of one microphone session; null when there is none. */
-  const sessionRef = useRef<{ format: AudioFormat; accessCode: string } | null>(null);
+  const sessionRef = useRef<{
+    format: AudioFormat;
+    accessCode: string;
+    provider: string | undefined;
+  } | null>(null);
   /** Server id of the connection being replaced, so the server can end it at once. */
   const replacesRef = useRef<string | null>(null);
   const handlersRef = useRef(handlers);
@@ -193,6 +198,7 @@ export function useLiveSession(handlers: Handlers) {
           accessCode: session.accessCode || undefined,
           audio: session.format,
           replaces: replacesRef.current ?? undefined,
+          provider: session.provider,
           readyTimeoutMs:
             READY_TIMEOUTS_MS[Math.min(retryRef.current.timeouts, READY_TIMEOUTS_MS.length - 1)],
         },
@@ -226,8 +232,9 @@ export function useLiveSession(handlers: Handlers) {
       handlersRef.current.onNeedsAccessCode(false);
       return 'needs_code';
     }
-    const format = pickAudioFormat();
-    const session = { format, accessCode };
+    const provider = resolveProvider(health.asr, loadProviderChoice());
+    const format = pickAudioFormat(provider.encodings.includes('opus'));
+    const session = { format, accessCode, provider: provider.name };
     sessionRef.current = session;
     // Connect while the microphone starts.
     openClientRef.current();

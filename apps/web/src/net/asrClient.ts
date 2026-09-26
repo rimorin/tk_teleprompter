@@ -65,6 +65,8 @@ type ClientOptions = {
   audio?: AudioFormat;
   /** Id of the session this one replaces after a lost connection. */
   replaces?: string;
+  /** Speech provider to use; the server's default when absent. */
+  provider?: string;
   readyTimeoutMs?: number;
 };
 
@@ -135,6 +137,7 @@ export class AsrClient {
           audio: this.audio,
           ...(this.options.accessCode ? { accessCode: this.options.accessCode } : {}),
           ...(this.options.replaces ? { replaces: this.options.replaces } : {}),
+          ...(this.options.provider ? { provider: this.options.provider } : {}),
         }),
       );
     };
