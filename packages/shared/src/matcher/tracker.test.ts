@@ -347,6 +347,103 @@ describe('tracker: skips, repeats and jumps', () => {
     }
   });
 
+  it('shows a skipped-to sentence from interims, before any final', () => {
+    let s = reposition(startTracking(initialTrackingState()), find('almost every one'));
+    const confirmed = s.confirmedTokenId;
+    // Four words are too little evidence for a skip; six are enough.
+    s = update(ctx, s, ev('interim', 'they imported a spreadsheet', 600_000));
+    expect(s.tentativeTokenId).toBeNull();
+    s = update(ctx, s, ev('interim', 'they imported a spreadsheet saw a', 600_000));
+    expect(s.tentativeTokenId).toBe(endOf('saw a'));
+    expect(s.confirmedTokenId).toBe(confirmed);
+    expect(s.resyncing).toBe(false);
+  });
+
+  it('catches up within a few words after skipping any one sentence, never running ahead', () => {
+    const starts = script.tokens
+      .filter((t, i) => i > 0 && /[.:!?]$/.test(script.tokens[i - 1]!.displayText))
+      .map((t) => t.id);
+    for (let i = 0; i + 1 < starts.length; i++) {
+      const [from, to] = [starts[i]!, starts[i + 1]!];
+      for (const seed of [1, 2, 3]) {
+        const trace = run(
+          simulate({ seed, actions: [{ type: 'skip', atTokenId: from, toTokenId: to }] }),
+        );
+        const label = `skip ${from}->${to} seed ${seed}`;
+        let caughtUpAfter: number | null = null;
+        for (const { sim, state } of trace.history) {
+          const truth = sim.truthTokenId ?? -1;
+          const focus = state.tentativeTokenId ?? state.confirmedTokenId ?? -1;
+          expect(focus, label).toBeLessThanOrEqual(truth + 1);
+          if (caughtUpAfter === null && truth >= to && focus >= to) caughtUpAfter = truth - to + 1;
+        }
+        expect(caughtUpAfter, label).not.toBeNull();
+        expect(caughtUpAfter!, label).toBeLessThanOrEqual(7);
+      }
+    }
+  });
+
+  it('follows a long final that reads on well past a skipped sentence', () => {
+    let s = reposition(startTracking(initialTrackingState()), find('a promise'));
+    s = update(
+      ctx,
+      s,
+      ev(
+        'final',
+        'a promise last spring we interviewed forty customers who had cancelled within their first month almost every one of',
+        610_000,
+      ),
+    );
+    expect(s.lastDecision?.kind).toBe('local');
+    expect(s.confirmedTokenId).toBe(endOf('almost every one of'));
+  });
+
+  it('confirms a pending jump from a final that ends in misheard words', () => {
+    let s = run(simulate({ actions: [{ type: 'stop', atTokenId: para(1).firstTokenId }] })).state;
+    s = update(
+      ctx,
+      s,
+      ev('final', 'templates can feel generic and some teams want a blank canvas', 620_000),
+    );
+    expect(s.lastDecision?.kind).toBe('far-pending');
+    s = update(
+      ctx,
+      s,
+      ev('final', 'so every template will be optional there uh wrap up list later', 621_000),
+    );
+    expect(s.lastDecision?.kind).toBe('far');
+    expect(s.confirmedTokenId).toBe(endOf('will be optional'));
+  });
+
+  it('keeps a pending jump through two unrecognizable finals, without jumping on them', () => {
+    let s = run(simulate({ actions: [{ type: 'stop', atTokenId: para(1).firstTokenId }] })).state;
+    const before = s.confirmedTokenId;
+    s = update(
+      ctx,
+      s,
+      ev('final', 'templates can feel generic and some teams want a blank canvas', 630_000),
+    );
+    const pending = s.pendingJump;
+    for (const [i, text] of ['bananas later thing okay', 'maybe there another thing'].entries()) {
+      s = update(ctx, s, ev('final', text, 631_000 + i * 1000));
+      expect(s.lastDecision?.kind).toBe('none');
+      expect(s.confirmedTokenId).toBe(before);
+      expect(s.pendingJump?.position).toBe(pending!.position);
+    }
+    const kept = s;
+    s = update(
+      ctx,
+      kept,
+      ev('final', 'so every template will be optional and we will measure', 634_000),
+    );
+    expect(s.lastDecision?.kind).toBe('far');
+    expect(s.confirmedTokenId).toBe(endOf('we will measure'));
+    // A third unrecognizable final drops it.
+    s = update(ctx, kept, ev('final', 'okay bananas later maybe', 634_000));
+    expect(s.pendingJump).toBeNull();
+    expect(s.confirmedTokenId).toBe(before);
+  });
+
   it('a far jump waits until enough words agree, however speech is split into finals', () => {
     const start = run(simulate({ actions: [{ type: 'stop', atTokenId: para(1).firstTokenId }] }));
     const read =
@@ -503,14 +600,6 @@ describe('tracker: after a lost connection', () => {
         expect(backAfter!, `gap ${gap} seed ${seed}`).toBeLessThanOrEqual(gap > 30 ? 15 : 9);
       }
     }
-  });
-
-  it('does not let the first session skip ahead on interims', () => {
-    let s = startTracking(initialTrackingState());
-    // Words from further into the first paragraph, heard as an interim on the very first session.
-    s = update(ctx, s, ev('interim', 'rebuilding the onboarding flow for new customers', 0));
-    expect(s.resyncing).toBe(false);
-    expect(s.tentativeTokenId).toBeNull();
   });
 });
 

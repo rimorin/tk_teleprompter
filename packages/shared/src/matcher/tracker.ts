@@ -40,9 +40,9 @@ export type TrackingState = {
   misses: number;
   /**
    * Distant candidate awaiting agreement: `words` spoken so far that support it, counted up to
-   * absolute final-word position `countedTo`. `stale` after one update that didn't support it.
+   * absolute final-word position `countedTo`. `missed`: updates since that didn't support it.
    */
-  pendingJump: { position: number; words: number; countedTo: number; stale?: boolean } | null;
+  pendingJump: { position: number; words: number; countedTo: number; missed: number } | null;
   /**
    * Last token of a distant place the speaker seems to have skipped to (null = none). Only a
    * suggestion the presenter can accept with a tap: it never moves either cursor. Set from
@@ -51,8 +51,8 @@ export type TrackingState = {
   jumpSuggestion: number | null;
   /**
    * A new provider session began after an earlier one (a lost connection): the speaker kept
-   * talking meanwhile, so is likely ahead. Until speech matches again, interim results may move
-   * the tentative cursor as far as a final could (a skip-grade match within the local window).
+   * talking meanwhile, so is likely ahead. Until speech matches again, the local window reaches
+   * further forward (a skip still needs skip-grade evidence).
    */
   resyncing: boolean;
   lastDecision: MatchDecision | null;
@@ -222,6 +222,9 @@ function updateConfirmed(
   if (phrase.length < cfg.minLocalWords) return state; // Not enough evidence yet; not a miss.
 
   const anchorPos = positionOf(ctx, state.confirmedTokenId);
+  // Measured from where the speaker would be after the new words, so a long final that reads
+  // on past a skip still falls inside the window.
+  const hi = anchorPos + newWords + (state.resyncing ? cfg.resyncForward : cfg.localForward);
   const pending = state.pendingJump;
   const agreesWithPending = (c: Scored) =>
     pending !== null &&
@@ -232,7 +235,7 @@ function updateConfirmed(
     phrase,
     anchorPos,
     newWords,
-    anchorPos + (state.resyncing ? cfg.resyncForward : cfg.localForward),
+    hi,
     cfg.minLocalWords,
     cfg.localThreshold,
   );
@@ -246,18 +249,28 @@ function updateConfirmed(
       truncated,
       anchorPos,
       newWords - cut,
-      anchorPos + (state.resyncing ? cfg.resyncForward : cfg.localForward),
+      hi,
       cfg.minLocalWords,
       cfg.localThreshold,
       false,
     );
     if (candidate && candidate.endPosition > anchorPos) local = candidate;
   }
+  // Likewise a misheard tail must not hide distant evidence just before it. Shortened phrases
+  // use only words not yet counted, so earlier evidence can't be counted again.
+  const fresh = finalWords.slice(-(pending ? end - pending.countedTo : newWords));
+  const findFar = () => {
+    let far = bestFar(ctx, phrase, anchorPos);
+    for (let cut = 1; !far && fresh.length - cut >= cfg.farMinWords; cut++) {
+      far = bestFar(ctx, fresh.slice(0, fresh.length - cut).slice(-cfg.phraseWords), anchorPos);
+    }
+    return far;
+  };
   let far: Scored | null = null;
-  if (local && pending && local.adjusted < cfg.farThreshold) {
-    // A weak local match (often just common words) must not cancel a pending jump that this
-    // update's distinctive evidence confirms.
-    far = bestFar(ctx, phrase, anchorPos);
+  if (local && pending && local.adjusted < cfg.farThreshold && !agreesWithPending(local)) {
+    // A weak local match elsewhere (often just common words) must not cancel a pending jump
+    // that this update's distinctive evidence confirms.
+    far = findFar();
     if (far && agreesWithPending(far)) local = null;
     else far = null;
   }
@@ -282,7 +295,7 @@ function updateConfirmed(
   }
 
   const misses = state.misses + 1;
-  far ??= bestFar(ctx, phrase, anchorPos);
+  far ??= findFar();
   if (far) {
     // Count each spoken word once, however the provider splits speech into finals.
     const words =
@@ -305,7 +318,7 @@ function updateConfirmed(
       ...state,
       misses,
       status: misses >= cfg.uncertainAfterMisses ? 'uncertain' : state.status,
-      pendingJump: { position: far.endPosition, words, countedTo: end },
+      pendingJump: { position: far.endPosition, words, countedTo: end, missed: 0 },
       lastDecision: decision('far-pending', ctx, far, phrase),
     };
   }
@@ -314,8 +327,11 @@ function updateConfirmed(
     ...state,
     misses,
     status: misses >= cfg.uncertainAfterMisses ? 'uncertain' : state.status,
-    // One unrecognizable update (e.g. a badly misheard segment) doesn't cancel a pending jump.
-    pendingJump: pending && !pending.stale ? { ...pending, stale: true } : null,
+    // A few unrecognizable updates (e.g. badly misheard segments) don't cancel a pending jump.
+    pendingJump:
+      pending && pending.missed < cfg.farPendingMaxMisses
+        ? { ...pending, missed: pending.missed + 1 }
+        : null,
     lastDecision: decision('none', ctx, null, phrase),
   };
 }
@@ -334,10 +350,9 @@ function updateTentative(
   }
   const phrase = [...finalWords, ...interimWords].slice(-cfg.phraseWords);
   const anchorPos = positionOf(ctx, state.confirmedTokenId);
-  // Normally a guess may run only a few words ahead; while resyncing it may skip like a final.
-  const hi = state.resyncing
-    ? anchorPos + cfg.resyncForward
-    : anchorPos + interimWords.length + cfg.tentativeMaxLead;
+  // A guess may skip ahead as a final could, so the display follows a skip before it's final.
+  const hi =
+    anchorPos + interimWords.length + (state.resyncing ? cfg.resyncForward : cfg.localForward);
   const best = bestLocal(
     ctx,
     phrase,

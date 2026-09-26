@@ -267,7 +267,7 @@ describe('App (simulated tracking)', () => {
     // The quoted words are marked in the script, in the paragraph the chip goes to.
     const marked = [...document.querySelectorAll<HTMLElement>('.tok.jump-target')];
     expect(marked.length).toBeGreaterThan(0);
-    expect(marked.every((el) => el.closest('[data-pid]')?.getAttribute('data-pid') === '3')).toBe(
+    expect(marked.every((el) => el.closest('[data-pid]')?.getAttribute('data-pid') === '4')).toBe(
       true,
     );
     expect(chip!.textContent).toContain(marked.at(-1)!.textContent);
@@ -275,10 +275,10 @@ describe('App (simulated tracking)', () => {
     fireEvent.click(chip!);
     // The tap is a manual reposition: everything up to the suggested spot is now spoken.
     expect(document.querySelectorAll('.tok.spoken').length).toBeGreaterThan(confirmedBefore);
-    // It is the paragraph the simulated speaker skipped to ("Here is the plan…"), not the ad-lib.
+    // It is the paragraph the simulated speaker skipped to ("None of this…"), not the ad-lib.
     expect(document.querySelector('.tok.next')!.closest('[data-pid]')).toHaveAttribute(
       'data-pid',
-      '3',
+      '4',
     );
     expect(screen.queryByRole('button', { name: /jump to/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Stop simulation' }));

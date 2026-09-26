@@ -11,7 +11,7 @@ export type MatcherConfig = {
   minTentativeWords: number;
   /** Tokens before the anchor included in the local window, so re-reads can match (never moves back). */
   localBackSlack: number;
-  /** Tokens after the anchor searched for ordinary progress, including small skips. */
+  /** Tokens searched beyond the expected position (anchor + new words), including skips. */
   localForward: number;
   /**
    * After a lost connection (a new provider session), the speaker may be further ahead: search
@@ -47,10 +47,10 @@ export type MatcherConfig = {
   farConfirmWords: number;
   /** Agreeing far candidates must land within this many tokens after the pending one. */
   farAgreementWindow: number;
+  /** Unmatched final updates a pending far jump survives before it is dropped. */
+  farPendingMaxMisses: number;
   /** Consecutive unmatched final updates before status becomes 'uncertain'. */
   uncertainAfterMisses: number;
-  /** Tentative cursor may run at most this many tokens beyond (confirmed + interim word count). */
-  tentativeMaxLead: number;
   costs: {
     fuzzy: number;
     substitution: number;
@@ -85,8 +85,8 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
   farCompetitorMinGap: 12,
   farConfirmWords: 14,
   farAgreementWindow: 25,
+  farPendingMaxMisses: 2,
   uncertainAfterMisses: 2,
-  tentativeMaxLead: 4,
   costs: {
     fuzzy: 0.35,
     substitution: 1,

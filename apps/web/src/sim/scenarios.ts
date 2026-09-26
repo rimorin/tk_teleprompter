@@ -23,7 +23,7 @@ export function scenarioOptions(
   const startPara = script.tokens[startTokenId]?.paragraphId ?? 0;
   const p1 = script.paragraphs[startPara + 1];
   const p2 = script.paragraphs[startPara + 2];
-  const p3 = script.paragraphs[startPara + 3];
+  const p4 = script.paragraphs[startPara + 4];
   const actions: SimOptions['actions'] = [];
   if (p1) {
     actions.push({
@@ -33,7 +33,8 @@ export function scenarioOptions(
     });
     actions.push({ type: 'pause', atTokenId: p1.firstTokenId + 3, ms: 4000 });
   }
-  if (p2 && p3)
-    actions.push({ type: 'skip', atTokenId: p2.firstTokenId, toTokenId: p3.firstTokenId });
+  // Two paragraphs: a shorter skip is followed without needing a jump.
+  if (p2 && p4)
+    actions.push({ type: 'skip', atTokenId: p2.firstTokenId, toTokenId: p4.firstTokenId });
   return { ...base, substitutionRate: 0.05, fillerRate: 0.05, actions };
 }
