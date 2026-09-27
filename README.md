@@ -84,21 +84,22 @@ look back down.
 
 <table>
 <tr>
-<td width="33%" valign="top">
+<td width="45%" align="center" valign="top">
+
+<img src="docs/images/following.gif" width="300" alt="Animation of the presenter view on a phone: as the simulated speaker talks, the spoken words fade, the words being heard turn warm, and the boxed next word moves along the reading line." />
+
+<sub>Practice mode reading the sample talk, in real time.</sub>
+
+</td>
+<td valign="top">
 
 ### 1 · Add your script
 
 Paste it, or upload a `.txt` or `.docx` file. Your paragraphs stay exactly as you wrote them.
 
-</td>
-<td width="33%" valign="top">
-
 ### 2 · Start presenting
 
 Choose a text size and theme you like. Tap the microphone.
-
-</td>
-<td width="33%" valign="top">
 
 ### 3 · Just talk
 
@@ -110,28 +111,30 @@ The script follows you. Tap any word to jump there yourself.
 
 ### Reading the screen
 
-| You see           | It means                               |
-| ----------------- | -------------------------------------- |
-| Faded text        | You have said this                     |
-| Warm, dimmer text | What the app is hearing right now      |
-| Underlined word   | Your next word                         |
-| ◀ ▶ markers       | The reading line. Your line stays here |
+| You see                 | It means                                    |
+| ----------------------- | ------------------------------------------- |
+| Faded text              | You have said this                          |
+| Warm, dimmer text       | What the app is hearing right now           |
+| Boxed, underlined word  | Your next word                              |
+| ▶ ◀ markers at the edge | The reading line. Your line stays here      |
+| Dashed underline        | Where a **Jump to …** button would take you |
 
 ### Made for talks that don't go to plan
 
-| When you…                         | The app…                                                              |
-| --------------------------------- | --------------------------------------------------------------------- |
-| **Pause** to breathe or think     | waits. Nothing moves while you are silent.                            |
-| **Go off script** to tell a story | keeps your place, then picks up when you come back to the script.     |
-| **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes.  |
-| **Skip** a sentence or a section  | offers a **Jump to …** button at once, and jumps by itself when sure. |
-| **Repeat** a line for effect      | never jumps backward by itself.                                       |
-| **Lose the network**              | reconnects by itself and carries on. The buttons always still work.   |
-| **Lose the mic**                  | stops where you are and tells you.                                    |
+| When you…                         | The app…                                                             |
+| --------------------------------- | -------------------------------------------------------------------- |
+| **Pause** to breathe or think     | waits. Nothing moves while you are silent.                           |
+| **Go off script** to tell a story | keeps your place, then picks up when you come back to the script.    |
+| **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes. |
+| **Skip** a sentence or two        | catches up by itself after about 5 words (about 2 seconds).          |
+| **Skip** a whole section          | offers a **Jump to …** button, and jumps by itself when sure.        |
+| **Repeat** a line for effect      | never jumps backward by itself.                                      |
+| **Lose the network**              | reconnects by itself and carries on. The buttons always still work.  |
+| **Lose the mic**                  | stops where you are and tells you.                                   |
 
 > [!NOTE]
-> A common phrase like "thank you very much" can appear in many places. On its own, it is never
-> enough to make the script jump.
+> A phrase that appears more than once in your script, like "at the end of the day", never makes
+> the script jump on its own. It waits for the next few words, which tell the places apart.
 
 ## Features
 
@@ -153,6 +156,7 @@ The script follows you. Tap any word to jump there yourself.
 **Hands-free, with manual control**
 
 - Follows your voice, with a clear status: _Listening_, _Lost place_, _Paused_.
+- A talk timer that starts when you start speaking.
 - Tap any word or paragraph to jump there.
 - Previous and next paragraph buttons.
 - Keyboard shortcuts, and support for presenter clickers (Page Up / Page Down).
@@ -191,7 +195,7 @@ The script follows you. Tap any word to jump there yourself.
 <tr>
 <td align="center"><img src="docs/images/setup-phone.png" width="240" alt="Setup screen on a phone with the script editor and a Start presenting button." /><br /><sub>Add your script</sub></td>
 <td align="center"><img src="docs/images/presenter-phone.png" width="240" alt="Presenter view on a phone following along, with a large stop button in the bottom dock." /><br /><sub>Present hands-free</sub></td>
-<td align="center"><img src="docs/images/settings-phone.png" width="240" alt="Settings sheet on a phone with theme, typeface, text size, spacing, column width and reading line controls." /><br /><sub>Make it comfortable</sub></td>
+<td align="center"><img src="docs/images/settings-phone.png" width="240" alt="Settings sheet on a phone with the speech service choice (Standard or Fastest) above the theme and typeface controls." /><br /><sub>Choose your speech service and look</sub></td>
 </tr>
 </table>
 
@@ -239,7 +243,7 @@ cp apps/server/.env.example apps/server/.env   # then set DEEPGRAM_API_KEY and/o
 pnpm dev                                        # web on :5173, server on :8787
 ```
 
-Open **http://localhost:5173**, choose **Load sample**, then **Start presenting**.
+Open **http://localhost:5173**, choose **Try the sample**, then **Start presenting**.
 
 ### On your phone or tablet
 
@@ -260,7 +264,7 @@ You will see a certificate warning once. That is expected for a local test certi
 | `Space`                 | Pause or resume following                             |
 | `↑` `↓` · `PgUp` `PgDn` | Previous or next paragraph (works with most clickers) |
 | `Home`                  | Back to the start                                     |
-| `+` `−`                 | Bigger or smaller text                                |
+| `+` `-`                 | Bigger or smaller text                                |
 | `F`                     | Full screen                                           |
 | `D`                     | Diagnostics panel                                     |
 | `?`                     | Show all shortcuts                                    |
@@ -294,7 +298,7 @@ for each option.
 flowchart LR
     subgraph browser["Browser"]
         direction TB
-        mic["Microphone"] --> enc["Audio capture<br/>Opus, or raw PCM<br/>on older browsers"]
+        mic["Microphone"] --> enc["Audio capture<br/>compressed Opus<br/>(raw PCM on some older browsers)"]
         match["Matcher<br/>finds your place"] --> view["Script view<br/>scrolls to your line"]
         taps["Taps and keys"] --> view
     end
@@ -308,6 +312,10 @@ flowchart LR
 ```
 
 ### One sentence, step by step
+
+<details>
+<summary><b>How guesses and final results move the highlight</b></summary>
+<br />
 
 The speech service sends two kinds of results. A **guess** comes quickly and may change. A
 **final** result comes a moment later and does not change. The app uses each one differently.
@@ -329,28 +337,45 @@ sequenceDiagram
     Note over App: Words fade as spoken<br/>(locked in, never moves back)
 ```
 
+A guess can even carry the warm highlight across a skipped sentence before the final result
+arrives, so the screen catches up sooner.
+
+</details>
+
 ### How the matcher finds your place
 
 It compares the last ~8 words you said with the script. It allows for misheard words, extra
 words, missed words, "um"s and spoken numbers ("twenty twenty five" = "2025").
 
+<details>
+<summary><b>The decision, step by step</b></summary>
+<br />
+
 ```mermaid
 flowchart TD
-    heard["New final words"] --> near{"Do they match the text<br/>just ahead of you?"}
+    heard["New words heard"] --> near{"Do they match the text<br/>just ahead of you?"}
     near -- "yes" --> move["Move forward"]
     near -- "they match text<br/>you already said" --> hold["Stay put<br/>(you are repeating)"]
+    near -- "they match a sentence or two ahead,<br/>and nowhere else (5+ words)" --> skip["Catch up to you"]
     near -- "no" --> far{"Do they match a rare phrase<br/>further ahead, and only there?"}
     far -- "yes" --> offer["Show a 'Jump to …' button<br/>(one tap moves you there)"]
-    offer -- "about 14 words agree,<br/>across two or more finals" --> jump["Jump ahead by itself"]
-    offer -- "you go back to where you were" --> gone["The button goes away"]
+    offer -- "about 14 words agree" --> jump["Jump ahead by itself"]
+    offer -- "you carry on where you were" --> gone["The button goes away"]
     far -- "not sure" --> wait["Stay put<br/>after a few misses: 'Lost place'"]
 ```
 
+</details>
+
+- **Short skips are followed by themselves.** Up to about 40 words ahead, 5 words that match
+  well are enough, as long as they match nowhere else in the script. Even a guess can move the
+  highlight, so it catches up in about 2 seconds.
+- **Far jumps are careful.** Quoting a later part of your talk ("later I'll show you…") must not
+  move the script, so a far jump needs about 14 agreeing words. The **Jump to …** button appears
+  much sooner, after about 5 words, so a real skip is still one tap away.
+- **Repeated phrases never cause a skip.** If the words also match another place in the script,
+  it waits for more.
 - It is a **pure function**: `update(context, state, transcriptEvent) → state`. It has no
   network or speech service code, so it is easy to test.
-- **Far jumps are careful.** Quoting a later part of your talk ("later I'll show you…") must not
-  move the script, so a jump needs about 14 agreeing words. The **Jump to …** button appears much
-  sooner, after about 5 words, so a real skip is still one tap away.
 - All the limits live in one file:
   [`packages/shared/src/matcher/config.ts`](packages/shared/src/matcher/config.ts).
 
@@ -365,7 +390,7 @@ apps/
   server/     Fastify WebSocket relay, Deepgram and AssemblyAI adapters, access control
 packages/
   shared/     Message formats, tokenizer, matcher, simulator (used by both apps)
-docs/         Screenshots
+docs/         Screenshots and illustrations
 deploy/       Optional platform helpers (Cloudflare)
 DEPLOYMENT.md Deployment guide for any platform
 compose.yaml  Run the production images with Docker Compose
@@ -373,9 +398,9 @@ compose.yaml  Run the production images with Docker Compose
 
 ### Tech stack
 
-TypeScript (strict) · React 19 · Vite · Fastify 5 · `ws` · Zod · Web Audio `AudioWorklet`,
+TypeScript (strict) · React 19 · Vite 8 · Fastify 5 · `ws` · Zod · Web Audio `AudioWorklet`,
 WebCodecs `AudioEncoder` and MediaRecorder (Opus) · Deepgram (Nova-3) and AssemblyAI
-(Universal-Streaming) speech-to-text · Caddy · Vitest + Testing Library · pnpm workspaces.
+(Universal-Streaming) speech-to-text · mammoth (reads `.docx` in the browser) · Caddy · Vitest + Testing Library · pnpm workspaces.
 
 ## Development
 
