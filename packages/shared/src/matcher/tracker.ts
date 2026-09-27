@@ -108,7 +108,8 @@ export function update(
 
   const { finalWords, interimWords } = wordsAfter(buffer, next.watermark);
   if (change === 'final') {
-    next = updateConfirmed(ctx, next, finalWords);
+    const added = finalWordEnd(buffer) - finalWordEnd(base.transcript);
+    next = updateConfirmed(ctx, next, finalWords, added);
     const pending = next.pendingJump;
     next = { ...next, jumpSuggestion: pending ? ctx.tokenIds[pending.position]! : null };
   }
@@ -163,6 +164,30 @@ function bestLocal(
   return null;
 }
 
+/** Best score among candidates that are a different place than `endPosition`. */
+function competitorScore(ctx: MatchContext, cands: AlignmentCandidate[], endPosition: number) {
+  let competitor = -Infinity;
+  for (const c of cands) {
+    if (Math.abs(c.endPosition - endPosition) > ctx.config.farCompetitorMinGap) {
+      competitor = Math.max(competitor, c.score);
+    }
+  }
+  return competitor;
+}
+
+/**
+ * A local move beyond what the speech since the last match can explain (`words`) is kept only
+ * if its phrase matches nowhere else in the script nearly as well: a phrase repeated in the
+ * script (e.g. "at the end of the day"), said as an aside, is no evidence of a skip.
+ */
+function uniqueIfSkip(ctx: MatchContext, c: Scored | null, anchorPos: number, words: number) {
+  if (!c || skipExcess(ctx, c.endPosition - anchorPos, words) <= 0) return c;
+  const cands = alignPhrase(ctx, c.phrase, 0, ctx.keys.length - 1);
+  return c.score - competitorScore(ctx, cands, c.endPosition) >= ctx.config.farUniquenessMargin
+    ? c
+    : null;
+}
+
 /** Distinctive, unique forward match anywhere after the anchor, or null. */
 function bestFar(ctx: MatchContext, phrase: string[], anchorPos: number): Scored | null {
   const cfg = ctx.config;
@@ -176,12 +201,7 @@ function bestFar(ctx: MatchContext, phrase: string[], anchorPos: number): Scored
       if (!best || c.score > best.score + 1e-9) best = c;
     }
     if (!best) continue;
-    let competitor = -Infinity;
-    for (const c of cands) {
-      if (Math.abs(c.endPosition - best.endPosition) > cfg.farCompetitorMinGap) {
-        competitor = Math.max(competitor, c.score);
-      }
-    }
+    const competitor = competitorScore(ctx, cands, best.endPosition);
     if (
       best.score >= cfg.farThreshold &&
       best.matchedWords >= cfg.farMinWords &&
@@ -213,6 +233,8 @@ function updateConfirmed(
   ctx: MatchContext,
   state: TrackingState,
   finalWords: string[],
+  /** Final words this update added. */
+  added: number,
 ): TrackingState {
   const cfg = ctx.config;
   const end = finalWordEnd(state.transcript);
@@ -257,11 +279,16 @@ function updateConfirmed(
     if (candidate && candidate.endPosition > anchorPos) local = candidate;
   }
   // Likewise a misheard tail must not hide distant evidence just before it. Shortened phrases
-  // use only words not yet counted, so earlier evidence can't be counted again.
-  const fresh = finalWords.slice(-(pending ? end - pending.countedTo : newWords));
+  // use only words not yet counted (so earlier evidence can't be counted again), and at most a
+  // phrase's worth are cut: each try aligns against the whole script.
+  const fresh = finalWords.slice(-(pending ? end - pending.countedTo : Math.min(newWords, added)));
   const findFar = () => {
     let far = bestFar(ctx, phrase, anchorPos);
-    for (let cut = 1; !far && fresh.length - cut >= cfg.farMinWords; cut++) {
+    for (
+      let cut = 1;
+      !far && cut <= cfg.phraseWords && fresh.length - cut >= cfg.farMinWords;
+      cut++
+    ) {
       far = bestFar(ctx, fresh.slice(0, fresh.length - cut).slice(-cfg.phraseWords), anchorPos);
     }
     return far;
@@ -274,6 +301,8 @@ function updateConfirmed(
     if (far && agreesWithPending(far)) local = null;
     else far = null;
   }
+  // Words heard before this update that matched nothing (often an ad-lib) don't vouch for a skip.
+  local = uniqueIfSkip(ctx, local, anchorPos, Math.min(newWords, added));
 
   if (local) {
     const matched: TrackingState = {
@@ -353,14 +382,19 @@ function updateTentative(
   // A guess may skip ahead as a final could, so the display follows a skip before it's final.
   const hi =
     anchorPos + interimWords.length + (state.resyncing ? cfg.resyncForward : cfg.localForward);
-  const best = bestLocal(
+  const best = uniqueIfSkip(
     ctx,
-    phrase,
+    bestLocal(
+      ctx,
+      phrase,
+      anchorPos,
+      interimWords.length,
+      hi,
+      cfg.minTentativeWords,
+      cfg.tentativeThreshold,
+    ),
     anchorPos,
     interimWords.length,
-    hi,
-    cfg.minTentativeWords,
-    cfg.tentativeThreshold,
   );
   const onTrack = best !== null && best.endPosition > anchorPos;
   const tentativeTokenId = onTrack

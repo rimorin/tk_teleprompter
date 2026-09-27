@@ -378,7 +378,10 @@ describe('tracker: skips, repeats and jumps', () => {
           if (caughtUpAfter === null && truth >= to && focus >= to) caughtUpAfter = truth - to + 1;
         }
         expect(caughtUpAfter, label).not.toBeNull();
-        expect(caughtUpAfter!, label).toBeLessThanOrEqual(7);
+        // "At the end of the day, onboarding…" opens with a phrase the script repeats later, so
+        // the skip waits for the words that tell the two apart.
+        const bound = to === find('at the end of the day') ? 10 : 7;
+        expect(caughtUpAfter!, label).toBeLessThanOrEqual(bound);
       }
     }
   });
@@ -518,6 +521,37 @@ describe('tracker: skips, repeats and jumps', () => {
     // Only local progress into the adjacent "At the end of the day" is acceptable.
     expect(s.confirmedTokenId!).toBeLessThanOrEqual(para(1).firstTokenId + 6);
     expect(before).toBeLessThan(para(1).firstTokenId);
+  });
+
+  it('does not skip ahead on a phrase the script repeats, even after an ad-lib', () => {
+    const adlib =
+      'you know honestly when we started none of us really believed we would get here so it has been quite a journey'.split(
+        ' ',
+      );
+    for (const phrase of [
+      'at the end of the day',
+      'and that is why',
+      'thank you very much',
+      'the first ten minutes',
+    ]) {
+      const later = find(phrase, find(phrase) + 1);
+      for (const back of [15, 30, 45]) {
+        for (const adlibWords of [0, 10, 20]) {
+          const label = `"${phrase}" ${back} ahead, after ${adlibWords} ad-lib words`;
+          let s = reposition(startTracking(initialTrackingState()), later - back + 1);
+          const before = s.confirmedTokenId!;
+          let order = 700_000;
+          for (let i = 0; i < adlibWords; i += 10) {
+            s = update(ctx, s, ev('final', adlib.slice(i, i + 10).join(' '), order++));
+          }
+          const heard = update(ctx, s, ev('interim', phrase, order));
+          s = update(ctx, heard, ev('final', phrase, order));
+          // At most ordinary progress over the phrase itself: no skip to its later occurrence.
+          expect(heard.tentativeTokenId ?? before, label).toBeLessThanOrEqual(before + 8);
+          expect(s.confirmedTokenId!, label).toBeLessThanOrEqual(before + 8);
+        }
+      }
+    }
   });
 
   it('does not jump far on weak evidence from a single distinctive-sounding segment', () => {
