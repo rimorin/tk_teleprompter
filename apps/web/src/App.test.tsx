@@ -57,6 +57,7 @@ describe('App (manual mode)', () => {
       /how it follows you/i,
       /reading the screen/i,
       /go to plan/i,
+      /^tips$/i,
       /privacy/i,
     ]) {
       expect(about.getByRole('heading', { name: heading })).toBeInTheDocument();

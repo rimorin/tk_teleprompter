@@ -7,10 +7,13 @@ import {
   CornerDownRight,
   Eye,
   FastForward,
+  GraduationCap,
   Hand,
+  Keyboard,
   Lightbulb,
   Lock,
   Mic,
+  MousePointerClick,
   Pause,
   RefreshCw,
   Repeat,
@@ -18,8 +21,9 @@ import {
   Server,
   Smartphone,
   Sparkles,
+  Zap,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 /** How voice following works, as a left-to-right (phones: top-to-bottom) flow. */
 const FLOW: Array<{ icon: ReactNode; title: string; text: string }> = [
@@ -50,8 +54,13 @@ const OFF_SCRIPT: Array<{ icon: ReactNode; when: string; then: string }> = [
   },
   {
     icon: <CornerDownRight size={16} aria-hidden />,
-    when: 'You skip ahead',
-    then: 'A “Jump to …” button appears. Tap it, or keep talking.',
+    when: 'You skip a sentence',
+    then: 'It catches up by itself within a few words.',
+  },
+  {
+    icon: <FastForward size={16} aria-hidden />,
+    when: 'You skip a whole section',
+    then: 'A “Jump to …” button appears. Tap it, or keep talking and it follows.',
   },
   {
     icon: <Repeat size={16} aria-hidden />,
@@ -93,6 +102,79 @@ const FACTS: Array<{ icon: ReactNode; title: string; text: string }> = [
     text: 'It keeps moving when you pause for a laugh or a question.',
   },
 ];
+
+/** Small habits that make the first talk go smoothly. */
+const TIPS: Array<{ icon: ReactNode; title: string; text: string }> = [
+  {
+    icon: <GraduationCap size={16} aria-hidden />,
+    title: 'Practise first.',
+    text: 'In the presenter, open Settings and start a simulation. No microphone needed.',
+  },
+  {
+    icon: <MousePointerClick size={16} aria-hidden />,
+    title: 'Lost your place?',
+    text: 'Tap any word, or use Previous and Next, and the script goes there.',
+  },
+  {
+    icon: <Keyboard size={16} aria-hidden />,
+    title: 'On a laptop?',
+    text: 'Press ? for keyboard shortcuts. Presenter clickers work too.',
+  },
+  {
+    icon: <Zap size={16} aria-hidden />,
+    title: 'Want it quicker?',
+    text: 'If Settings offers “Fastest”, it confirms your words about a second sooner.',
+  },
+];
+
+/** A sample line for "Reading the screen", with the words split for the demo. */
+const DEMO_WORDS = 'Good morning, everyone, and thank you for being here today.'.split(' ');
+/** Where the demo rests when motion is reduced: the same moment as the presenter legend. */
+const DEMO_REST = DEMO_WORDS.indexOf('being');
+/** Words shown as "being heard" just behind the next word. */
+const DEMO_HEARD = 3;
+const DEMO_STEP_MS = 520;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/** The sample line read aloud on a loop: faded, then warm, then the boxed next word moves on. */
+function ReadingDemo() {
+  const [next, setNext] = useState(() => (prefersReducedMotion() ? DEMO_REST : 0));
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    // A few steps past the end hold the finished line (about 1.5 s) before it starts again.
+    const id = setInterval(
+      () => setNext((n) => (n >= DEMO_WORDS.length + 2 ? 0 : n + 1)),
+      DEMO_STEP_MS,
+    );
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <p className="demo-line" aria-hidden>
+      {DEMO_WORDS.map((word, i) => (
+        <span
+          key={i}
+          className={
+            i === next
+              ? 'demo-next'
+              : i < next - DEMO_HEARD
+                ? 'demo-spoken'
+                : i < next
+                  ? 'demo-heard'
+                  : undefined
+          }
+        >
+          {word}
+        </span>
+      )).flatMap((el, i) => (i ? [' ', el] : [el]))}
+    </p>
+  );
+}
 
 /** Why the app exists and how it works, in plain words for speakers. */
 export function About() {
@@ -182,11 +264,7 @@ export function About() {
 
       <h3 className="about-heading">Reading the screen</h3>
       <div className="card screen-demo">
-        <p className="demo-line" aria-hidden>
-          <span className="demo-spoken">Good morning, everyone, and </span>
-          <span className="demo-heard">thank you for </span>
-          <span className="demo-next">being</span> here today.
-        </p>
+        <ReadingDemo />
         <dl className="legend">
           <div>
             <dt>
@@ -202,7 +280,7 @@ export function About() {
           </div>
           <div>
             <dt>
-              <span className="swatch" data-kind="next" /> Highlighted
+              <span className="swatch" data-kind="next" /> Boxed
             </dt>
             <dd>Your next word. It glides along as you speak.</dd>
           </div>
@@ -210,7 +288,13 @@ export function About() {
             <dt>
               <span className="swatch" data-kind="line" /> Reading line
             </dt>
-            <dd>Your line always settles here, between the ◀ ▶ markers.</dd>
+            <dd>Your line always settles here, between the ▶ ◀ markers.</dd>
+          </div>
+          <div>
+            <dt>
+              <span className="swatch" data-kind="jump" /> Dashed underline
+            </dt>
+            <dd>Where a “Jump to …” button would take you.</dd>
           </div>
         </dl>
       </div>
@@ -222,6 +306,18 @@ export function About() {
             <span className="off-icon">{row.icon}</span>
             <span>
               <strong>{row.when}.</strong> {row.then}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <h3 className="about-heading">Tips</h3>
+      <ul className="facts tips">
+        {TIPS.map((tip) => (
+          <li key={tip.title} className="card fact">
+            <span className="off-icon">{tip.icon}</span>
+            <span>
+              <strong>{tip.title}</strong> {tip.text}
             </span>
           </li>
         ))}

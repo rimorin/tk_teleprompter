@@ -203,8 +203,9 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             className="btn ghost about-btn"
             onClick={() => setAboutOpen(true)}
             aria-haspopup="dialog"
+            aria-label="About"
           >
-            <Info size={16} aria-hidden /> About
+            <Info size={16} aria-hidden /> <span className="about-label">About</span>
           </button>
           <Segmented
             label="Theme"

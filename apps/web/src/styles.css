@@ -486,6 +486,12 @@ input[type='range']::-moz-range-thumb {
 .about-btn {
   padding: 0 0.7rem;
 }
+/* Narrow phones: the icon alone, so the app name keeps its room. */
+@media (max-width: 389px) {
+  .about-label {
+    display: none;
+  }
+}
 /* Wide sheet (About): nearly full height on phones, a centred reading panel on larger screens. */
 .sheet-backdrop[data-wide] .sheet {
   max-height: 92dvh;
@@ -832,6 +838,9 @@ input[type='range']::-moz-range-thumb {
   .facts {
     grid-template-columns: repeat(3, 1fr);
   }
+  .tips {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 .about-heading {
   margin: 1.75rem 0 0.7rem;
@@ -926,6 +935,11 @@ input[type='range']::-moz-range-thumb {
   right: 0;
   border-right: 8px solid var(--accent);
 }
+/* Colours fade as the demo reads on; the box jumps, so only one word is ever boxed. */
+.demo-line > span {
+  border-radius: 0.28em;
+  transition: color 0.3s var(--ease);
+}
 .demo-spoken {
   color: var(--fg-spoken);
 }
@@ -972,6 +986,11 @@ input[type='range']::-moz-range-thumb {
 .swatch[data-kind='next'] {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   box-shadow: inset 0 -3px 0 var(--accent);
+}
+.swatch[data-kind='jump'] {
+  height: 0.2rem;
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--accent) 0 3px, transparent 3px 5px);
 }
 .swatch[data-kind='line'] {
   background: linear-gradient(90deg, var(--accent) 0 3px, var(--accent-soft) 3px);
