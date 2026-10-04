@@ -18,3 +18,22 @@ Our next experiment is guided templates. Instead of an empty workspace, new cust
 There are risks. Templates can feel generic, and some teams want a blank canvas. So every template will be optional, and we will measure whether people keep them or delete them within a week.
 
 To wrap up: listen to the people who leave, fix the first ten minutes, and measure everything. Thank you very much, and I am happy to take questions.`;
+
+/**
+ * A full script written as list lines (dashes, numbers, sub-items). It must keep being tracked
+ * word by word: a long list line is a script sentence, not an outline bullet.
+ */
+export const LIST_SCRIPT = `Three things changed how our customers get started this year.
+
+- First, we stopped asking new customers to configure everything before they had seen a single result in the product.
+- Second, the importer now previews every column and explains each warning in plain language before anything is saved.
+  - In testing, completion rates climbed from fifty-one to seventy-eight percent within two weeks.
+- Third, we removed four setup screens, and nobody has asked us to bring any of them back.
+
+What we plan to do next:
+
+1. Ship guided templates so that a new workspace never starts out completely empty.
+2. Measure whether teams keep the template they picked, or replace it within their first month.
+3. Talk to every customer who cancels in the first thirty days, and share what they tell us.
+
+Thank you very much, and I am happy to take questions.`;
