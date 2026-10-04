@@ -48,7 +48,8 @@ function trace(script: ParsedScript, options: SimOptions): string[] {
   simulateReading(script, options).forEach((sim, i) => {
     state = update(ctx, state, sim.event);
     const key = stateKey(state);
-    if (key !== last) lines.push(`${i} ${sim.event.kind[0]} truth=${sim.truthTokenId ?? '-'} ${key}`);
+    if (key !== last)
+      lines.push(`${i} ${sim.event.kind[0]} truth=${sim.truthTokenId ?? '-'} ${key}`);
     last = key;
   });
   return lines;

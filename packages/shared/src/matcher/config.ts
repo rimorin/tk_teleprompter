@@ -63,6 +63,34 @@ export type MatcherConfig = {
   fillerWords: readonly string[];
   /** Words that carry no distinctiveness (IDF forced to 0). */
   stopWords: readonly string[];
+  /**
+   * Outline tracking: which bullet the speaker is on while they talk freely around short
+   * bullets. A forward-only belief over bullets, updated from bullet keywords heard in finals.
+   */
+  outline: {
+    /** A list item of at most this many words is an outline bullet; a longer one is prose. */
+    maxBulletWords: number;
+    /** Per final with evidence: probability of moving on to the next bullet. */
+    next: number;
+    /**
+     * Likelihood of a bullet: exp(evidenceWeight * summed IDF of its keywords heard / square
+     * root of its summed keyword IDF).
+     */
+    evidenceWeight: number;
+    /** Move to the furthest bullet the speaker has reached with at least this probability. */
+    commitProbability: number;
+    /** A keyword heard again within this many content words adds no new evidence. */
+    repeatWindowWords: number;
+    /**
+     * Reaching a bullet two or more ahead: of the last `farWindowFinals` finals with evidence,
+     * at least `farFinals` must have evidence for it, summing to `farMinEvidence` or more.
+     */
+    farWindowFinals: number;
+    farFinals: number;
+    farMinEvidence: number;
+    /** Common words that say nothing about which bullet the speaker is on. */
+    extraStopWords: readonly string[];
+  };
 };
 
 export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
@@ -163,4 +191,23 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
     'thank',
     'thanks',
   ],
+  outline: {
+    maxBulletWords: 10,
+    next: 0.2,
+    evidenceWeight: 1.6,
+    commitProbability: 0.6,
+    repeatWindowWords: 30,
+    farWindowFinals: 3,
+    farFinals: 2,
+    farMinEvidence: 0.8,
+    // prettier-ignore
+    extraStopWords: [
+      'about', 'over', 'down', 'up', 'out', 'into', 'off', 'more', 'most', 'some', 'any', 'get',
+      'got', 'make', 'made', 'go', 'going', 'went', 'take', 'takes', 'took', 'way', 'really',
+      'thing', 'things', 'lot', 'well', 'also', 'then', 'than', 'when', 'where', 'how', 'why',
+      'now', 'new', 'first', 'next', 'last', 'back', 'see', 'say', 'said', 'know', 'think',
+      'want', 'let', 'lets', 'one', 'other', 'every', 'even', 'still', 'too', 'much', 'many',
+      'here', 'our', 'were', 'am', 'im', 'it', 'okay', 'right', 'yeah', 'yes', 'great', 'good',
+    ],
+  },
 };

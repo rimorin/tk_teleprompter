@@ -180,3 +180,21 @@ export function simulateReading(script: ParsedScript, options: SimOptions = {}):
   flush();
   return events.sort((a, b) => a.atMs - b.atMs);
 }
+
+/**
+ * Apply simulated recognition errors to free speech (e.g. a talk given from an outline):
+ * each word is misrecognized with probability `substitutionRate`, deterministically per seed.
+ */
+export function misrecognize(
+  texts: readonly string[],
+  substitutionRate: number,
+  seed = 1,
+): string[] {
+  const rng = createRng(seed);
+  return texts.map((text) =>
+    text
+      .split(' ')
+      .map((w) => (rng() < substitutionRate ? garble(w.toLowerCase(), rng) : w))
+      .join(' '),
+  );
+}
