@@ -1,10 +1,11 @@
 /* ------------------------------------------------------------------ Tokens */
 
 :root {
-  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-ui: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans:
+    'Geist Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --font-serif: 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, Georgia, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 10px;
   --radius-sm: 7px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -21,50 +22,123 @@
   text-rendering: optimizeLegibility;
 }
 
-[data-theme='dark'] {
-  --glow: rgba(255, 196, 92, 0.55);
+/* Every theme resets the backdrop, so a theme previewed inside another doesn't inherit it. */
+[data-theme] {
+  --backdrop: none;
+}
+
+/* Status colours mean the same in every theme; only light and dark need different shades. */
+[data-theme='graphite'],
+[data-theme='cosmic'],
+[data-theme='ember'],
+[data-theme='mono'] {
   color-scheme: dark;
-  --bg: #0c0d10;
-  --bg-elev: #15171b;
-  --bg-hover: #1d2026;
-  --border: #272a31;
-  --border-strong: #3a3e47;
-  --fg: #f3f2ee;
-  --fg-muted: #979ca6;
-  --fg-spoken: #595e68;
-  --fg-tentative: #b4a27b;
-  --accent: #7ea6ff;
-  --accent-fg: #0b1224;
-  --accent-soft: rgba(126, 166, 255, 0.14);
   --live: #ff5d5d;
   --ok: #45d39a;
   --warn: #f5b04a;
   --error: #ff7b7b;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
-  --topbar-bg: #101114;
 }
-
-[data-theme='light'] {
-  --glow: rgba(214, 140, 0, 0.3);
+[data-theme='daylight'] {
   color-scheme: light;
-  --bg: #f7f6f2;
-  --bg-elev: #ffffff;
-  --bg-hover: #efeee9;
-  --border: #e2dfd7;
-  --border-strong: #cbc7bd;
-  --fg: #17181b;
-  --fg-muted: #636873;
-  --fg-spoken: #a9adb4;
-  --fg-tentative: #987f51;
-  --accent: #2f62d8;
-  --accent-fg: #ffffff;
-  --accent-soft: rgba(47, 98, 216, 0.1);
   --live: #d93636;
   --ok: #1c9a67;
   --warn: #b7791f;
   --error: #b3261e;
-  --shadow: 0 12px 32px rgba(40, 36, 28, 0.14), 0 2px 6px rgba(40, 36, 28, 0.08);
-  --topbar-bg: #fbfaf7;
+}
+
+/* Graphite: cool neutral, one soft blue accent. */
+[data-theme='graphite'] {
+  --bg: #0b0c0e;
+  --bg-elev: #131518;
+  --bg-hover: #1b1e23;
+  --border: #24272d;
+  --border-strong: #363b44;
+  --fg: #eceef1;
+  --fg-muted: #8f959f;
+  --fg-spoken: #535862;
+  --fg-tentative: #9fb3e0;
+  --glow: rgba(138, 180, 255, 0.5);
+  --accent: #8ab4ff;
+  --accent-fg: #0a1020;
+  --accent-soft: rgba(138, 180, 255, 0.13);
+  --topbar-bg: #0e0f12;
+}
+
+/* Cosmic Night: deep indigo with a faint, still nebula; violet accent. */
+[data-theme='cosmic'] {
+  --bg: #0a0a1a;
+  --bg-elev: #12122a;
+  --bg-hover: #1a1a38;
+  --border: #25254a;
+  --border-strong: #37376a;
+  --fg: #ecebff;
+  --fg-muted: #9b99c6;
+  --fg-spoken: #55537e;
+  --fg-tentative: #c4b5fd;
+  --glow: rgba(167, 139, 250, 0.55);
+  --accent: #a78bfa;
+  --accent-fg: #12082e;
+  --accent-soft: rgba(167, 139, 250, 0.15);
+  --topbar-bg: #0d0d20;
+  --backdrop:
+    radial-gradient(ellipse 90% 55% at 10% -5%, rgba(124, 58, 237, 0.18), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 105% 105%, rgba(34, 211, 238, 0.08), transparent 65%);
+}
+
+/* Ember: warm charcoal with an amber accent; low blue light and glare for dim rooms. */
+[data-theme='ember'] {
+  --bg: #0e0c0a;
+  --bg-elev: #171411;
+  --bg-hover: #211d18;
+  --border: #2c2620;
+  --border-strong: #41382e;
+  --fg: #f4ede4;
+  --fg-muted: #a59a8c;
+  --fg-spoken: #5f574d;
+  --fg-tentative: #e3b97c;
+  --glow: rgba(255, 176, 77, 0.5);
+  --accent: #f5a64a;
+  --accent-fg: #1c1004;
+  --accent-soft: rgba(245, 166, 74, 0.14);
+  --topbar-bg: #120f0c;
+}
+
+/* Mono: greyscale with maximum contrast, for harsh light. */
+[data-theme='mono'] {
+  --bg: #000000;
+  --bg-elev: #0f0f0f;
+  --bg-hover: #1a1a1a;
+  --border: #262626;
+  --border-strong: #404040;
+  --fg: #ffffff;
+  --fg-muted: #a3a3a3;
+  --fg-spoken: #5c5c5c;
+  --fg-tentative: #d4d4d4;
+  --glow: rgba(255, 255, 255, 0.4);
+  --accent: #ffffff;
+  --accent-fg: #000000;
+  --accent-soft: rgba(255, 255, 255, 0.12);
+  --topbar-bg: #050505;
+}
+
+/* Daylight: cool and clean. */
+[data-theme='daylight'] {
+  --bg: #f4f6f9;
+  --bg-elev: #ffffff;
+  --bg-hover: #e9ecf1;
+  --border: #dce0e7;
+  --border-strong: #c3c9d3;
+  --fg: #0f1218;
+  --fg-muted: #5a6170;
+  --fg-spoken: #a2a8b3;
+  --fg-tentative: #4f6ea8;
+  --glow: rgba(37, 87, 214, 0.25);
+  --accent: #2557d6;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(37, 87, 214, 0.1);
+  --shadow: 0 12px 32px rgba(20, 30, 50, 0.12), 0 2px 6px rgba(20, 30, 50, 0.07);
+  --topbar-bg: #f8f9fb;
 }
 
 /*
@@ -94,6 +168,7 @@ body {
 .app,
 .presenter {
   background: var(--bg);
+  background-image: var(--backdrop, none);
   color: var(--fg);
 }
 .app {
@@ -562,6 +637,82 @@ input[type='range']::-moz-range-thumb {
   display: grid;
   gap: 0.4rem;
   font-size: 0.95rem;
+}
+
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.theme-option {
+  position: relative;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.35rem 0.35rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.theme-option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.theme-option[data-checked] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.theme-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.theme-swatch {
+  display: flex;
+  height: 52px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.theme-preview {
+  position: relative;
+  flex: 1;
+  padding: 12px 10px;
+  background: var(--bg);
+  background-image: var(--backdrop, none);
+}
+.tp-line {
+  display: block;
+  width: 80%;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--fg);
+}
+.tp-line.short {
+  width: 50%;
+  margin-top: 6px;
+  background: var(--fg-muted);
+}
+.tp-dot {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.theme-name {
+  font-size: 0.82rem;
+  text-align: center;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theme-option[data-checked] .theme-name {
+  color: var(--fg);
 }
 .panel-body p {
   margin: -0.5rem 0 0;

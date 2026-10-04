@@ -208,7 +208,7 @@ describe('App (manual mode)', () => {
     }
   });
 
-  it('follows the device theme by default and steps through themes from the header', async () => {
+  it('follows the device theme by default and offers named themes from the header', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query === '(prefers-color-scheme: light)',
       addEventListener: () => {},
@@ -218,12 +218,15 @@ describe('App (manual mode)', () => {
       const user = userEvent.setup();
       render(<App />);
       const app = document.querySelector('.app') as HTMLElement;
-      expect(app.dataset.theme).toBe('light');
-      await user.click(screen.getByRole('button', { name: /theme: system/i }));
-      expect(app.dataset.theme).toBe('dark');
-      await user.click(screen.getByRole('button', { name: /theme: dark/i }));
-      expect(app.dataset.theme).toBe('light');
-      expect(screen.getByRole('button', { name: /theme: light/i })).toBeInTheDocument();
+      expect(app.dataset.theme).toBe('daylight');
+      await user.click(screen.getByRole('button', { name: 'Theme' }));
+      const sheet = screen.getByRole('dialog', { name: 'Theme' });
+      expect(within(sheet).getByRole('radio', { name: 'System' })).toBeChecked();
+      await user.click(within(sheet).getByRole('radio', { name: 'Cosmic Night' }));
+      expect(app.dataset.theme).toBe('cosmic');
+      expect(JSON.parse(window.localStorage.getItem('teleprompter.settings.v1')!)).toMatchObject({
+        theme: 'cosmic',
+      });
     } finally {
       vi.unstubAllGlobals();
     }
@@ -240,17 +243,17 @@ describe('App (presenter controls)', () => {
     await user.click(screen.getByRole('button', { name: /start presenting/i }));
     await user.click(screen.getByRole('button', { name: 'Settings' }));
     const panel = screen.getByRole('dialog', { name: 'Settings' });
-    await user.click(within(panel).getByRole('radio', { name: /light/i }));
+    await user.click(within(panel).getByRole('radio', { name: 'Daylight' }));
     await user.click(within(panel).getByRole('radio', { name: /serif/i }));
     await user.click(within(panel).getByRole('switch', { name: /mirror/i }));
     const presenter = document.querySelector('.presenter') as HTMLElement;
-    expect(presenter.dataset.theme).toBe('light');
+    expect(presenter.dataset.theme).toBe('daylight');
     expect(presenter.dataset.face).toBe('serif');
     expect(document.querySelector('.content')).toHaveClass('mirrored');
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument();
     expect(JSON.parse(window.localStorage.getItem('teleprompter.settings.v1')!)).toMatchObject({
-      theme: 'light',
+      theme: 'daylight',
       typeface: 'serif',
       mirrored: true,
     });

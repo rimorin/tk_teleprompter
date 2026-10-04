@@ -6,14 +6,12 @@ import {
   Info,
   Loader2,
   Lock,
-  Monitor,
-  Moon,
+  Palette,
   Play,
   RotateCcw,
   ScrollText,
   Share,
   Sparkles,
-  Sun,
   Trash2,
   Upload,
   WifiOff,
@@ -38,6 +36,7 @@ import { describeProvider, loadProviderChoice, resolveProvider } from '../live/a
 import { useServerStatus, type ServerStatus } from './useServerStatus';
 import { About } from './About';
 import { Sheet } from '../ui/Sheet';
+import { ThemePicker } from '../ui/ThemePicker';
 import { loadJson, saveJson } from '../storage';
 
 type Props = {
@@ -52,14 +51,6 @@ type Props = {
 const WORDS_PER_MINUTE = 140;
 /** Show the length meter only once a script gets close to the limit. */
 const SHOW_LENGTH_FROM = 0.8;
-
-/** The header button steps through the themes in this order. */
-const NEXT_THEME: Record<Theme, Theme> = { system: 'dark', dark: 'light', light: 'system' };
-const THEME_INFO: Record<Theme, { name: string; icon: React.ReactNode }> = {
-  system: { name: 'System', icon: <Monitor size={18} aria-hidden /> },
-  dark: { name: 'Dark', icon: <Moon size={18} aria-hidden /> },
-  light: { name: 'Light', icon: <Sun size={18} aria-hidden /> },
-};
 
 const HOME_TIP_KEY = 'teleprompter.homeScreenTipSeen.v1';
 
@@ -107,6 +98,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const [importing, setImporting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   /** null = automatic: open when the server needs a code and none was saved on this device. */
   const [voiceOpen, setVoiceOpen] = useState<boolean | null>(null);
   /** The script just cleared, offered back until something new is added. */
@@ -138,7 +130,6 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const empty = text.length === 0;
   // Anything new in the editor replaces what Undo would bring back.
   if (cleared !== null && !empty) setCleared(null);
-  const nextTheme = NEXT_THEME[theme];
   const openFilePicker = () => fileInputRef.current?.click();
   const needsCode = codeRequired && !accessCode.trim();
   const showVoice = voiceOpen ?? (codeRequired && !initialCode);
@@ -243,11 +234,12 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           <button
             type="button"
             className="icon-btn"
-            onClick={() => onThemeChange(nextTheme)}
-            aria-label={`Theme: ${THEME_INFO[theme].name}. Switch to ${THEME_INFO[nextTheme].name}`}
-            title={`Theme: ${THEME_INFO[theme].name}`}
+            onClick={() => setThemeOpen(true)}
+            aria-haspopup="dialog"
+            aria-label="Theme"
+            title="Theme"
           >
-            {THEME_INFO[theme].icon}
+            <Palette size={18} aria-hidden />
           </button>
         </div>
       </header>
@@ -516,6 +508,14 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           </p>
         )}
       </main>
+
+      {themeOpen && (
+        <Sheet label="Theme" onClose={() => setThemeOpen(false)}>
+          <div className="panel-body">
+            <ThemePicker value={theme} onChange={onThemeChange} />
+          </div>
+        </Sheet>
+      )}
 
       {aboutOpen && (
         <Sheet label="About this app" onClose={() => setAboutOpen(false)} wide>

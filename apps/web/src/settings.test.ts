@@ -10,13 +10,16 @@ describe('settings', () => {
 
   it('keeps saved values, clamps bad ones, and fills gaps from the device defaults', () => {
     const phone = defaultSettingsFor(390);
-    expect(sanitizeSettings({ fontSizePx: 999, theme: 'light' }, phone)).toMatchObject({
+    expect(sanitizeSettings({ fontSizePx: 999, theme: 'cosmic' }, phone)).toMatchObject({
       fontSizePx: 120,
-      theme: 'light',
+      theme: 'cosmic',
       readingZone: 0.25,
     });
     expect(sanitizeSettings({ theme: 'neon' as never }, phone).theme).toBe('system');
     // The high-contrast theme was removed; a saved choice falls back to the default.
     expect(sanitizeSettings({ theme: 'contrast' as never }, phone).theme).toBe('system');
+    // Dark and light from before named themes keep their look.
+    expect(sanitizeSettings({ theme: 'dark' as never }, phone).theme).toBe('graphite');
+    expect(sanitizeSettings({ theme: 'light' as never }, phone).theme).toBe('daylight');
   });
 });

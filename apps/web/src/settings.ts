@@ -1,8 +1,16 @@
 import { loadJson, saveJson } from './storage';
 
-/** 'system' follows the device's light or dark appearance. */
-export type Theme = 'system' | 'dark' | 'light';
-export type ResolvedTheme = 'dark' | 'light';
+export type ThemeName = 'graphite' | 'cosmic' | 'ember' | 'mono' | 'daylight';
+/** 'system' follows the device's appearance: Graphite when dark, Daylight when light. */
+export type Theme = 'system' | ThemeName;
+
+export const THEMES: Array<{ id: ThemeName; name: string; scheme: 'dark' | 'light' }> = [
+  { id: 'graphite', name: 'Graphite', scheme: 'dark' },
+  { id: 'cosmic', name: 'Cosmic Night', scheme: 'dark' },
+  { id: 'ember', name: 'Ember', scheme: 'dark' },
+  { id: 'mono', name: 'Mono', scheme: 'dark' },
+  { id: 'daylight', name: 'Daylight', scheme: 'light' },
+];
 export type Typeface = 'sans' | 'serif';
 
 export type PresenterSettings = {
@@ -45,7 +53,9 @@ export function defaultSettingsFor(viewportWidth: number): PresenterSettings {
 }
 
 const STORAGE_KEY = 'teleprompter.settings.v1';
-const THEMES: Theme[] = ['system', 'dark', 'light'];
+const THEME_IDS: Theme[] = ['system', ...THEMES.map((t) => t.id)];
+/** Themes saved before named themes existed. */
+const LEGACY_THEMES: Record<string, ThemeName> = { dark: 'graphite', light: 'daylight' };
 const TYPEFACES: Typeface[] = ['sans', 'serif'];
 
 function clamp(n: unknown, { min, max }: { min: number; max: number }, fallback: number) {
@@ -62,7 +72,9 @@ export function sanitizeSettings(
     lineHeight: clamp(v.lineHeight, SETTINGS_LIMITS.lineHeight, defaults.lineHeight),
     readingZone: clamp(v.readingZone, SETTINGS_LIMITS.readingZone, defaults.readingZone),
     columnWidthEm: clamp(v.columnWidthEm, SETTINGS_LIMITS.columnWidthEm, defaults.columnWidthEm),
-    theme: THEMES.includes(v.theme as Theme) ? (v.theme as Theme) : defaults.theme,
+    theme: THEME_IDS.includes(v.theme as Theme)
+      ? (v.theme as Theme)
+      : (LEGACY_THEMES[v.theme as string] ?? defaults.theme),
     typeface: TYPEFACES.includes(v.typeface as Typeface)
       ? (v.typeface as Typeface)
       : defaults.typeface,

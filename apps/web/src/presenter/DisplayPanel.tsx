@@ -1,6 +1,6 @@
-import { Monitor, Moon, Sun } from 'lucide-react';
 import { SETTINGS_LIMITS, type PresenterSettings } from '../settings';
 import { Segmented, Slider, Switch } from '../ui/controls';
+import { ThemePicker } from '../ui/ThemePicker';
 
 type Props = {
   settings: PresenterSettings;
@@ -14,37 +14,7 @@ export function DisplayPanel({ settings, onChange }: Props) {
       <h3 className="panel-title">Display</h3>
       <div className="field">
         <span aria-hidden>Theme</span>
-        <Segmented
-          label="Theme"
-          value={settings.theme}
-          onChange={(theme) => onChange({ theme })}
-          options={[
-            {
-              value: 'system',
-              label: (
-                <>
-                  <Monitor size={15} aria-hidden /> System
-                </>
-              ),
-            },
-            {
-              value: 'dark',
-              label: (
-                <>
-                  <Moon size={15} aria-hidden /> Dark
-                </>
-              ),
-            },
-            {
-              value: 'light',
-              label: (
-                <>
-                  <Sun size={15} aria-hidden /> Light
-                </>
-              ),
-            },
-          ]}
-        />
+        <ThemePicker value={settings.theme} onChange={(theme) => onChange({ theme })} />
       </div>
       <div className="field">
         <span aria-hidden>Typeface</span>

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { ResolvedTheme, Theme } from './settings';
+import type { Theme, ThemeName } from './settings';
 
 const QUERY = '(prefers-color-scheme: light)';
 
@@ -11,8 +11,9 @@ function subscribe(onChange: () => void) {
 
 const prefersLight = () => window.matchMedia?.(QUERY).matches ?? false;
 
-/** The theme to paint: 'system' becomes the device's current appearance, and follows changes. */
-export function useResolvedTheme(theme: Theme): ResolvedTheme {
+/** The theme to paint: 'system' becomes Graphite or Daylight to match the device, and follows changes. */
+export function useResolvedTheme(theme: Theme): ThemeName {
   const light = useSyncExternalStore(subscribe, prefersLight);
-  return theme === 'system' ? (light ? 'light' : 'dark') : theme;
+  if (theme !== 'system') return theme;
+  return light ? 'daylight' : 'graphite';
 }
