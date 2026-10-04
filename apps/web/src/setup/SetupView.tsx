@@ -6,14 +6,18 @@ import {
   Info,
   Loader2,
   Lock,
+  Monitor,
   Moon,
   Play,
+  RotateCcw,
   ScrollText,
+  Share,
   Sparkles,
   Sun,
   Trash2,
   Upload,
   WifiOff,
+  X,
 } from 'lucide-react';
 import {
   useDeferredValue,
@@ -28,13 +32,13 @@ import { parseScript } from '@teleprompter/shared';
 import { MAX_SCRIPT_CHARS } from '../config';
 import { SAMPLE_SCRIPT } from '../sampleScript';
 import type { Theme } from '../settings';
-import { Segmented } from '../ui/controls';
 import { ACCEPTED_FILE_TYPES, checkScriptLength, ImportError, readScriptFile } from './importFile';
 import { loadAccessCode, saveAccessCode } from '../live/accessCode';
 import { describeProvider, loadProviderChoice, resolveProvider } from '../live/asrProvider';
 import { useServerStatus, type ServerStatus } from './useServerStatus';
 import { About } from './About';
 import { Sheet } from '../ui/Sheet';
+import { loadJson, saveJson } from '../storage';
 
 type Props = {
   text: string;
@@ -48,6 +52,27 @@ type Props = {
 const WORDS_PER_MINUTE = 140;
 /** Show the length meter only once a script gets close to the limit. */
 const SHOW_LENGTH_FROM = 0.8;
+
+/** The header button steps through the themes in this order. */
+const NEXT_THEME: Record<Theme, Theme> = { system: 'dark', dark: 'light', light: 'system' };
+const THEME_INFO: Record<Theme, { name: string; icon: React.ReactNode }> = {
+  system: { name: 'System', icon: <Monitor size={18} aria-hidden /> },
+  dark: { name: 'Dark', icon: <Moon size={18} aria-hidden /> },
+  light: { name: 'Light', icon: <Sun size={18} aria-hidden /> },
+};
+
+const HOME_TIP_KEY = 'teleprompter.homeScreenTipSeen.v1';
+
+/**
+ * iPhone browsers can't go full screen; opened from the home screen, the app runs without the
+ * browser's bars. iPads support full screen, so they don't need the tip.
+ */
+function isIPhoneBrowser(): boolean {
+  const standalone =
+    (navigator as { standalone?: boolean }).standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)').matches === true;
+  return /iPhone|iPod/.test(navigator.userAgent) && !standalone;
+}
 
 /** Developer-only fixes, shown in dev builds so presenters never see them. */
 const DEV_HINTS: Partial<Record<ServerStatus, string>> = {
@@ -84,6 +109,11 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const [aboutOpen, setAboutOpen] = useState(false);
   /** null = automatic: open when the server needs a code and none was saved on this device. */
   const [voiceOpen, setVoiceOpen] = useState<boolean | null>(null);
+  /** The script just cleared, offered back until something new is added. */
+  const [cleared, setCleared] = useState<string | null>(null);
+  const [showHomeTip, setShowHomeTip] = useState(
+    () => isIPhoneBrowser() && loadJson<boolean>(HOME_TIP_KEY) !== true,
+  );
   const textareaId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   /** Whether the speaker has clicked or typed in the editor, so Paste knows the cursor counts. */
@@ -106,6 +136,9 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const voice = VOICE_STATUS[serverStatus];
   const devHint = import.meta.env.DEV ? DEV_HINTS[serverStatus] : undefined;
   const empty = text.length === 0;
+  // Anything new in the editor replaces what Undo would bring back.
+  if (cleared !== null && !empty) setCleared(null);
+  const nextTheme = NEXT_THEME[theme];
   const openFilePicker = () => fileInputRef.current?.click();
   const needsCode = codeRequired && !accessCode.trim();
   const showVoice = voiceOpen ?? (codeRequired && !initialCode);
@@ -117,7 +150,7 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
         : 'Voice ready'
       : serverStatus === 'checking'
         ? 'Checking voice…'
-        : 'Voice off';
+        : 'Voice unavailable';
 
   async function importFile(file: File | undefined) {
     if (!file) return;
@@ -207,15 +240,15 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           >
             <Info size={16} aria-hidden /> <span className="about-label">About</span>
           </button>
-          <Segmented
-            label="Theme"
-            value={theme}
-            onChange={onThemeChange}
-            options={[
-              { value: 'dark', label: <Moon size={15} aria-label="Dark" />, title: 'Dark' },
-              { value: 'light', label: <Sun size={15} aria-label="Light" />, title: 'Light' },
-            ]}
-          />
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => onThemeChange(nextTheme)}
+            aria-label={`Theme: ${THEME_INFO[theme].name}. Switch to ${THEME_INFO[nextTheme].name}`}
+            title={`Theme: ${THEME_INFO[theme].name}`}
+          >
+            {THEME_INFO[theme].icon}
+          </button>
         </div>
       </header>
 
@@ -235,6 +268,25 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
       </div>
 
       <main className="doc">
+        {showHomeTip && (
+          <div className="tip-bar" role="note">
+            <Share size={16} aria-hidden />
+            <span>
+              For full screen, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.
+            </span>
+            <button
+              type="button"
+              className="icon-btn small"
+              onClick={() => {
+                setShowHomeTip(false);
+                saveJson(HOME_TIP_KEY, true);
+              }}
+              aria-label="Dismiss tip"
+            >
+              <X size={16} aria-hidden />
+            </button>
+          </div>
+        )}
         <div className="doc-toolbar">
           <div className="card-actions" hidden={empty}>
             {canReadClipboard && (
@@ -268,7 +320,10 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <button
               type="button"
               className="btn ghost"
-              onClick={() => onTextChange('')}
+              onClick={() => {
+                setCleared(text);
+                onTextChange('');
+              }}
               disabled={!text}
               aria-label="Clear"
               title="Clear script"
@@ -338,6 +393,22 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
               Nothing is recorded or stored.
             </p>
           </section>
+        )}
+
+        {cleared !== null && empty && (
+          <div className="undo-bar" role="status">
+            <span>Script cleared.</span>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                onTextChange(cleared);
+                setCleared(null);
+              }}
+            >
+              <RotateCcw size={15} aria-hidden /> Undo
+            </button>
+          </div>
         )}
 
         <label htmlFor={textareaId} className="sr-only">

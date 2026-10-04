@@ -57,6 +57,7 @@ import { loadJson, saveJson } from '../storage';
 import { ScriptDisplay } from './ScriptDisplay';
 import { SessionTimer } from './SessionTimer';
 import { StatusPill, type Source } from './StatusPill';
+import { useResolvedTheme } from '../theme';
 
 type Props = {
   script: ParsedScript;
@@ -207,6 +208,7 @@ export function PresenterView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useFullscreen(rootRef);
   const ctx = useMemo(() => createMatchContext(script), [script]);
+  const theme = useResolvedTheme(settings.theme);
   const [source, setSource] = useState<Source>('none');
   const [scenario, setScenario] = useState<SimScenario>('clean');
   /** Each simulation run gets a new seed so repeated runs differ, while staying reproducible. */
@@ -375,7 +377,7 @@ export function PresenterView({
     <div
       ref={rootRef}
       className="presenter"
-      data-theme={settings.theme}
+      data-theme={theme}
       data-face={settings.typeface}
       data-idle={idle || undefined}
       style={

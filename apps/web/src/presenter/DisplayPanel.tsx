@@ -1,4 +1,4 @@
-import { Moon, Sun } from 'lucide-react';
+import { Monitor, Moon, Sun } from 'lucide-react';
 import { SETTINGS_LIMITS, type PresenterSettings } from '../settings';
 import { Segmented, Slider, Switch } from '../ui/controls';
 
@@ -12,38 +12,52 @@ export function DisplayPanel({ settings, onChange }: Props) {
   return (
     <div className="panel-body">
       <h3 className="panel-title">Display</h3>
-      <Segmented
-        label="Theme"
-        value={settings.theme}
-        onChange={(theme) => onChange({ theme })}
-        options={[
-          {
-            value: 'dark',
-            label: (
-              <>
-                <Moon size={15} aria-hidden /> Dark
-              </>
-            ),
-          },
-          {
-            value: 'light',
-            label: (
-              <>
-                <Sun size={15} aria-hidden /> Light
-              </>
-            ),
-          },
-        ]}
-      />
-      <Segmented
-        label="Typeface"
-        value={settings.typeface}
-        onChange={(typeface) => onChange({ typeface })}
-        options={[
-          { value: 'sans', label: <span className="face-sans">Sans</span> },
-          { value: 'serif', label: <span className="face-serif">Serif</span> },
-        ]}
-      />
+      <div className="field">
+        <span aria-hidden>Theme</span>
+        <Segmented
+          label="Theme"
+          value={settings.theme}
+          onChange={(theme) => onChange({ theme })}
+          options={[
+            {
+              value: 'system',
+              label: (
+                <>
+                  <Monitor size={15} aria-hidden /> System
+                </>
+              ),
+            },
+            {
+              value: 'dark',
+              label: (
+                <>
+                  <Moon size={15} aria-hidden /> Dark
+                </>
+              ),
+            },
+            {
+              value: 'light',
+              label: (
+                <>
+                  <Sun size={15} aria-hidden /> Light
+                </>
+              ),
+            },
+          ]}
+        />
+      </div>
+      <div className="field">
+        <span aria-hidden>Typeface</span>
+        <Segmented
+          label="Typeface"
+          value={settings.typeface}
+          onChange={(typeface) => onChange({ typeface })}
+          options={[
+            { value: 'sans', label: <span className="face-sans">Sans</span> },
+            { value: 'serif', label: <span className="face-serif">Serif</span> },
+          ]}
+        />
+      </div>
       <Slider
         label="Text size"
         value={settings.fontSizePx}

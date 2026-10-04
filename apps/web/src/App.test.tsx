@@ -172,6 +172,62 @@ describe('App (manual mode)', () => {
     render(<App />);
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toMatch(/^Good morning/);
   });
+
+  it('offers Undo after clearing the script, until something new is added', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /try the sample/i }));
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    expect(textarea.value).toBe('');
+    await user.click(screen.getByRole('button', { name: /undo/i }));
+    expect(textarea.value).toMatch(/^Good morning/);
+    expect(screen.queryByRole('button', { name: /undo/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.type(textarea, 'New talk');
+    await user.clear(textarea);
+    expect(screen.queryByRole('button', { name: /undo/i })).not.toBeInTheDocument();
+  });
+
+  it('suggests Add to Home Screen in iPhone Safari until dismissed', async () => {
+    const ua = vi
+      .spyOn(navigator, 'userAgent', 'get')
+      .mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1');
+    try {
+      const user = userEvent.setup();
+      const { unmount } = render(<App />);
+      expect(screen.getByRole('note')).toHaveTextContent(/add to home screen/i);
+      await user.click(screen.getByRole('button', { name: 'Dismiss tip' }));
+      expect(screen.queryByRole('note')).not.toBeInTheDocument();
+      unmount();
+      render(<App />);
+      expect(screen.queryByRole('note')).not.toBeInTheDocument();
+    } finally {
+      ua.mockRestore();
+    }
+  });
+
+  it('follows the device theme by default and steps through themes from the header', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-color-scheme: light)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    try {
+      const user = userEvent.setup();
+      render(<App />);
+      const app = document.querySelector('.app') as HTMLElement;
+      expect(app.dataset.theme).toBe('light');
+      await user.click(screen.getByRole('button', { name: /theme: system/i }));
+      expect(app.dataset.theme).toBe('dark');
+      await user.click(screen.getByRole('button', { name: /theme: dark/i }));
+      expect(app.dataset.theme).toBe('light');
+      expect(screen.getByRole('button', { name: /theme: light/i })).toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('App (presenter controls)', () => {

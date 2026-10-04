@@ -1,6 +1,8 @@
 import { loadJson, saveJson } from './storage';
 
-export type Theme = 'dark' | 'light';
+/** 'system' follows the device's light or dark appearance. */
+export type Theme = 'system' | 'dark' | 'light';
+export type ResolvedTheme = 'dark' | 'light';
 export type Typeface = 'sans' | 'serif';
 
 export type PresenterSettings = {
@@ -25,7 +27,7 @@ export const SETTINGS_LIMITS = {
 export const DEFAULT_SETTINGS: PresenterSettings = {
   fontSizePx: 44,
   lineHeight: 1.5,
-  theme: 'dark',
+  theme: 'system',
   readingZone: 0.33,
   columnWidthEm: 30,
   typeface: 'sans',
@@ -43,7 +45,7 @@ export function defaultSettingsFor(viewportWidth: number): PresenterSettings {
 }
 
 const STORAGE_KEY = 'teleprompter.settings.v1';
-const THEMES: Theme[] = ['dark', 'light'];
+const THEMES: Theme[] = ['system', 'dark', 'light'];
 const TYPEFACES: Typeface[] = ['sans', 'serif'];
 
 function clamp(n: unknown, { min, max }: { min: number; max: number }, fallback: number) {

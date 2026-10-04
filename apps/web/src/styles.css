@@ -558,6 +558,11 @@ input[type='range']::-moz-range-thumb {
 .panel-body .segmented {
   width: 100%;
 }
+.field {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
 .panel-body p {
   margin: -0.5rem 0 0;
 }
@@ -1223,6 +1228,26 @@ input[type='range']::-moz-range-thumb {
   flex: 1;
   flex-direction: column;
 }
+.undo-bar,
+.tip-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  font-size: 0.95rem;
+}
+.tip-bar {
+  justify-content: flex-start;
+  color: var(--fg-muted);
+}
+.tip-bar span {
+  flex: 1;
+}
 .dropzone textarea {
   display: block;
   flex: 1;
@@ -1247,6 +1272,9 @@ input[type='range']::-moz-range-thumb {
   color: var(--fg-muted);
   font-family: var(--font-ui);
   font-size: 16px;
+}
+.app[data-face='sans'] .dropzone textarea {
+  font-family: var(--font-sans);
 }
 .dropzone[data-dragging] textarea {
   border-color: var(--accent);
@@ -1736,6 +1764,15 @@ input[type='range']::-moz-range-thumb {
   background: var(--bg-hover);
   white-space: nowrap;
 }
+/* "Mic off" is already shown by the mic button; keep it for screen readers only. */
+.status[data-status='idle'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
 .status-dot {
   flex: none;
   width: 8px;
@@ -1798,6 +1835,18 @@ input[type='range']::-moz-range-thumb {
   container-type: size;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  /* Text fades out at the strip and dock instead of being cut off under them. */
+  --fade-top: calc(var(--strip-h) + var(--safe-top));
+  --fade-bottom: calc(var(--dock-h) + var(--safe-bottom));
+  --fade: linear-gradient(
+    to bottom,
+    transparent var(--fade-top),
+    #000 calc(var(--fade-top) + 2.5rem),
+    #000 calc(100% - var(--fade-bottom) - 3rem),
+    transparent calc(100% - var(--fade-bottom))
+  );
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
 }
 .reading-zone {
   position: absolute;
@@ -2144,6 +2193,9 @@ input[type='range']::-moz-range-thumb {
   }
   .toasts {
     bottom: calc(var(--dock-h) + var(--safe-bottom) + 32px);
+  }
+  .scroller {
+    --fade-bottom: calc(var(--dock-h) + var(--safe-bottom) + 16px);
   }
   .content {
     padding-left: 2rem;

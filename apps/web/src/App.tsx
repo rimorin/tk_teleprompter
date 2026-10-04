@@ -4,6 +4,7 @@ import { PresenterView } from './presenter/PresenterView';
 import { SetupView } from './setup/SetupView';
 import { loadSettings, saveSettings, type PresenterSettings } from './settings';
 import { loadJson, saveJson } from './storage';
+import { useResolvedTheme } from './theme';
 
 const SCRIPT_KEY = 'teleprompter.script.v1';
 
@@ -16,6 +17,7 @@ export function App() {
   const [trackedSource, setTrackedSource] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const script = useMemo(() => parseScript(text), [text]);
+  const theme = useResolvedTheme(settings.theme);
 
   useEffect(() => {
     const timer = setTimeout(() => saveJson(SCRIPT_KEY, text), 400);
@@ -26,10 +28,10 @@ export function App() {
 
   // Theme the page root too, so overscroll areas and mobile browser bars match.
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme;
+    document.documentElement.dataset.theme = theme;
     const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg || '#0c0d10');
-  }, [settings.theme]);
+  }, [theme]);
 
   function present() {
     if (trackedSource !== script.source) {
@@ -61,7 +63,7 @@ export function App() {
     );
   }
   return (
-    <div className="app" data-theme={settings.theme}>
+    <div className="app" data-theme={theme} data-face={settings.typeface}>
       <SetupView
         text={text}
         onTextChange={setText}
