@@ -57,7 +57,7 @@
   --fg: #f5f5f5;
   --fg-muted: #a1a1a1;
   --fg-spoken: #575757;
-  --fg-tentative: #d4d4d4;
+  --fg-tentative: #b0b0b0; /* dimmer than unread text: no hue to tint with */
   --glow: rgba(255, 255, 255, 0.4);
   --accent: #ededed;
   --accent-fg: #0a0a0a;
@@ -1087,16 +1087,18 @@ input[type='range']::-moz-range-thumb {
   content: '';
   position: absolute;
   top: 50%;
-  border: 6px solid transparent;
+  width: 3px;
+  height: 56%;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
   transform: translateY(-50%);
 }
 .demo-line::before {
-  left: 0;
-  border-left: 8px solid var(--accent);
+  left: 4px;
 }
 .demo-line::after {
-  right: 0;
-  border-right: 8px solid var(--accent);
+  right: 4px;
 }
 /* Colours fade as the demo reads on; the box jumps, so only one word is ever boxed. */
 .demo-line > span {
@@ -2105,7 +2107,7 @@ input[type='range']::-moz-range-thumb {
   overflow-wrap: break-word;
   cursor: pointer;
 }
-/* The script: words ease from bright (to read) to warm and dimmer (heard) to dim (said). */
+/* The script: words ease from bright (to read) to tinted and dimmer (heard) to dim (said). */
 .script {
   position: relative;
   isolation: isolate; /* keeps the marker (z-index -1) just behind the words */

@@ -142,7 +142,7 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-/** The sample line read aloud on a loop: faded, then warm, then the boxed next word moves on. */
+/** The sample line read aloud on a loop: faded, then tinted, then the boxed next word moves on. */
 function ReadingDemo() {
   const [next, setNext] = useState(() => (prefersReducedMotion() ? DEMO_REST : 0));
   useEffect(() => {
@@ -274,7 +274,7 @@ export function About() {
           </div>
           <div>
             <dt>
-              <span className="swatch" data-kind="heard" /> Warm
+              <span className="swatch" data-kind="heard" /> Tinted
             </dt>
             <dd>What it is hearing right now.</dd>
           </div>
@@ -288,7 +288,7 @@ export function About() {
             <dt>
               <span className="swatch" data-kind="line" /> Reading line
             </dt>
-            <dd>Your line always settles here, between the ▶ ◀ markers.</dd>
+            <dd>Your line always settles here, between the marks at each edge.</dd>
           </div>
           <div>
             <dt>
