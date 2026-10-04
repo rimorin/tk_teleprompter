@@ -10,14 +10,20 @@ import {
 import type { TrackingStatus, TranscriptEvent } from '../types';
 import { alignPhrase, type AlignmentCandidate } from './align';
 import { positionOf, type MatchContext } from './context';
+import {
+  initialOutlineState,
+  tentativeOutlineBullet,
+  updateOutline,
+  type OutlineState,
+} from './outline';
 
 export type MatchDecision = {
   /**
    * local: ordinary forward progress · hold: speech matched text at/behind the cursor (re-read) ·
    * far-pending: distinctive distant match awaiting agreement · far: controlled forward jump ·
-   * none: no acceptable match.
+   * none: no acceptable match · outline: following an outline bullet by bullet.
    */
-  kind: 'local' | 'hold' | 'far-pending' | 'far' | 'none';
+  kind: 'local' | 'hold' | 'far-pending' | 'far' | 'none' | 'outline';
   phrase: string[];
   tokenId: number | null;
   score: number | null;
@@ -55,6 +61,11 @@ export type TrackingState = {
    * further forward (a skip still needs skip-grade evidence).
    */
   resyncing: boolean;
+  /**
+   * While the reading focus is in an outline run: which run, and the bullet tracking there
+   * (null in prose). The cursor sits just before the current bullet's line.
+   */
+  outline: { run: number; state: OutlineState } | null;
   lastDecision: MatchDecision | null;
 };
 
@@ -73,6 +84,7 @@ export function initialTrackingState(): TrackingState {
     pendingJump: null,
     jumpSuggestion: null,
     resyncing: false,
+    outline: null,
     lastDecision: null,
   };
 }
@@ -109,11 +121,139 @@ export function update(
   const { finalWords, interimWords } = wordsAfter(buffer, next.watermark);
   if (change === 'final') {
     const added = finalWordEnd(buffer) - finalWordEnd(base.transcript);
-    next = updateConfirmed(ctx, next, finalWords, added);
+    const at = outlineAt(ctx, next.confirmedTokenId);
+    next = at
+      ? updateOutlineConfirmed(ctx, next, at, finalWords, added)
+      : updateConfirmed(ctx, next, finalWords, added);
     const pending = next.pendingJump;
     next = { ...next, jumpSuggestion: pending ? ctx.tokenIds[pending.position]! : null };
   }
-  return updateTentative(ctx, next, finalWords, interimWords, change === 'interim');
+  const at = outlineAt(ctx, next.confirmedTokenId);
+  return at
+    ? updateOutlineTentative(ctx, next, at, interimWords, change === 'interim')
+    : updateTentative(ctx, next, finalWords, interimWords, change === 'interim');
+}
+
+type OutlinePlace = { run: number; bullet: number };
+
+/** The outline run and bullet the reading focus (the next token) is in, or null in prose. */
+function outlineAt(ctx: MatchContext, confirmedTokenId: number | null): OutlinePlace | null {
+  const focus = (confirmedTokenId ?? -1) + 1;
+  const run = ctx.outlines.findIndex((r) => focus >= r.startTokenId && focus <= r.lastTokenId);
+  if (run === -1) return null;
+  const { bullets } = ctx.outlines[run]!.outline;
+  let bullet = 0;
+  while (bullet + 1 < bullets.length && bullets[bullet + 1]!.startTokenId <= focus) bullet++;
+  return { run, bullet };
+}
+
+/** The outline state at `at`, carried over if tracking was already there. */
+function outlineStateAt(ctx: MatchContext, state: TrackingState, at: OutlinePlace): OutlineState {
+  const o = state.outline;
+  return o && o.run === at.run && o.state.bullet === at.bullet
+    ? o.state
+    : initialOutlineState(ctx.outlines[at.run]!.outline, at.bullet);
+}
+
+/** Cursor for being on `bullet`: just before its line, so the focus is on it. */
+function beforeBullet(ctx: MatchContext, at: OutlinePlace, bullet: number): number | null {
+  const id = ctx.outlines[at.run]!.outline.bullets[bullet]!.startTokenId - 1;
+  return id < 0 ? null : id;
+}
+
+function updateOutlineConfirmed(
+  ctx: MatchContext,
+  state: TrackingState,
+  at: OutlinePlace,
+  finalWords: string[],
+  added: number,
+): TrackingState {
+  if (added <= 0) return state;
+  const cfg = ctx.config;
+  const run = ctx.outlines[at.run]!;
+  const end = finalWordEnd(state.transcript);
+  const words = finalWords.slice(-added);
+  // Only this final's words, so evidence already counted can't vouch for a move again.
+  const readFrom = (tokenId: number) =>
+    updateConfirmed(
+      ctx,
+      {
+        ...state,
+        confirmedTokenId: tokenId,
+        finalIndexAtLastMatch: end - added,
+        pendingJump: null,
+      },
+      words,
+      added,
+    );
+  // Reading on into the script after the outline hands back to word-by-word matching. Free
+  // speech can share common words with that script, or quote it, so it takes a distinctive
+  // phrase (pending, shown as a jump suggestion), then another reading on from there.
+  const readOn = (from: number) => {
+    const next = readFrom(from);
+    const d = next.lastDecision;
+    return (next.confirmedTokenId ?? -1) > from &&
+      d?.kind === 'local' &&
+      d.phrase.length >= cfg.farMinWords &&
+      (d.distinctiveness ?? 0) >= cfg.farMinDistinctiveness
+      ? next
+      : null;
+  };
+  const pending = state.pendingJump;
+  const confirmed = pending && readOn(ctx.tokenIds[pending.position]!);
+  if (confirmed) return { ...confirmed, outline: null };
+  const prose = readOn(run.lastTokenId);
+  const pendingJump = prose
+    ? {
+        position: positionOf(ctx, prose.confirmedTokenId),
+        words: prose.lastDecision!.phrase.length,
+        countedTo: end,
+        missed: 0,
+      }
+    : pending && pending.missed < cfg.farPendingMaxMisses
+      ? { ...pending, missed: pending.missed + 1 }
+      : null;
+
+  const before = outlineStateAt(ctx, state, at);
+  const o = updateOutline(run.outline, before, words);
+  return {
+    ...state,
+    confirmedTokenId:
+      o.bullet > before.bullet ? beforeBullet(ctx, at, o.bullet) : state.confirmedTokenId,
+    status: o.quietWords >= cfg.outline.uncertainAfterWords ? 'uncertain' : 'tracking',
+    misses: 0,
+    pendingJump,
+    finalIndexAtLastMatch: end,
+    outline: { run: at.run, state: o },
+    lastDecision: {
+      kind: 'outline',
+      phrase: words,
+      tokenId: run.outline.bullets[o.bullet]!.firstTokenId,
+      score: o.belief[o.bullet]!,
+      distinctiveness: null,
+    },
+  };
+}
+
+function updateOutlineTentative(
+  ctx: MatchContext,
+  state: TrackingState,
+  at: OutlinePlace,
+  interimWords: string[],
+  /** An unmatched interim revision keeps the previous tentative. */
+  keepOnMiss: boolean,
+): TrackingState {
+  let tentativeTokenId: number | null = null;
+  if (interimWords.length) {
+    const outline = ctx.outlines[at.run]!.outline;
+    const bullet = tentativeOutlineBullet(outline, outlineStateAt(ctx, state, at), interimWords);
+    if (bullet !== null) tentativeTokenId = beforeBullet(ctx, at, bullet);
+    else if (keepOnMiss) tentativeTokenId = state.tentativeTokenId;
+  }
+  if (tentativeTokenId !== null && tentativeTokenId <= (state.confirmedTokenId ?? -1)) {
+    tentativeTokenId = null;
+  }
+  return tentativeTokenId === state.tentativeTokenId ? state : { ...state, tentativeTokenId };
 }
 
 type Scored = AlignmentCandidate & { adjusted: number; phrase: string[] };
@@ -427,6 +567,7 @@ export function reposition(state: TrackingState, tokenId: number): TrackingState
     pendingJump: null,
     jumpSuggestion: null,
     resyncing: false,
+    outline: null,
     lastDecision: null,
   };
 }

@@ -2,6 +2,9 @@ import type { ParsedScript } from './types';
 
 /** One top-level outline bullet; its sub-bullets are folded into its token range. */
 export type OutlineBullet = {
+  /** First token of the bullet's line: its marker ("-", "1."). */
+  startTokenId: number;
+  /** First and last tokens of its text, without the marker. */
   firstTokenId: number;
   lastTokenId: number;
 };
@@ -9,7 +12,7 @@ export type OutlineBullet = {
 /** A list line: "- point", "* point", "• point", "1. point", "2) point". */
 const LIST_ITEM = /^([ \t]*)(?:[-*•–]|\d{1,2}[.)])[ \t]+\S/;
 
-type Item = { indent: number; contentStart: number; end: number };
+type Item = { indent: number; start: number; contentStart: number; end: number };
 
 /**
  * Outline bullets: top-level list items of at most `maxWords` words, each with the sub-items
@@ -26,6 +29,7 @@ export function findOutlineBullets(script: ParsedScript, maxWords: number): Outl
       const indent = m[1]!.replace(/\t/g, '    ').length;
       const item = {
         indent,
+        start: lineStart + m[1]!.length,
         contentStart: lineStart + m[0].length - 1,
         end: lineStart + line.trimEnd().length,
       };
@@ -44,7 +48,11 @@ export function findOutlineBullets(script: ParsedScript, maxWords: number): Outl
     const words = headTokens.filter((t) => script.tokens[t]!.normalized).length;
     if (!words || words > maxWords) continue;
     const all = tokensIn(script, head.contentStart, group[group.length - 1]!.end);
-    bullets.push({ firstTokenId: all[0]!, lastTokenId: all[all.length - 1]! });
+    bullets.push({
+      startTokenId: tokensIn(script, head.start, head.end)[0]!,
+      firstTokenId: all[0]!,
+      lastTokenId: all[all.length - 1]!,
+    });
   }
   return bullets;
 }

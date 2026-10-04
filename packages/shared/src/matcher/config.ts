@@ -90,6 +90,8 @@ export type MatcherConfig = {
     farMinEvidence: number;
     /** Common words that say nothing about which bullet the speaker is on. */
     extraStopWords: readonly string[];
+    /** Spoken words with no keyword of the current or a later bullet before status is 'uncertain'. */
+    uncertainAfterWords: number;
   };
 };
 
@@ -200,6 +202,7 @@ export const DEFAULT_MATCHER_CONFIG: MatcherConfig = {
     farWindowFinals: 3,
     farFinals: 2,
     farMinEvidence: 0.8,
+    uncertainAfterWords: 150,
     // prettier-ignore
     extraStopWords: [
       'about', 'over', 'down', 'up', 'out', 'into', 'off', 'more', 'most', 'some', 'any', 'get',

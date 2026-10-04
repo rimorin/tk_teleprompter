@@ -40,6 +40,8 @@ export type OutlineState = {
   recent: string[];
   /** Per-bullet evidence of the last few finals that had any, oldest first. */
   history: number[][];
+  /** Words heard since the last final with a keyword of this bullet or a later one. */
+  quietWords: number;
 };
 
 /** Crude suffix stemming: "customers" / "customer", "piloted" / "pilot", "days" / "day". */
@@ -96,6 +98,7 @@ export function initialOutlineState(ctx: OutlineContext, bullet = 0): OutlineSta
     belief: ctx.bullets.map((_, i) => (i === bullet ? 1 : 0)),
     recent: [],
     history: [],
+    quietWords: 0,
   };
 }
 
@@ -179,13 +182,21 @@ export function updateOutline(
   const ev = ctx.bullets.map((_, k) => evidence(ctx, k, heard, state.recent));
   const ahead = ev.slice(state.bullet);
   // Nothing that tells the bullets ahead apart (a tangent): no evidence of moving on.
-  if (Math.max(...ahead) === Math.min(...ahead)) return { ...state, recent };
+  if (Math.max(...ahead) === Math.min(...ahead)) {
+    return { ...state, recent, quietWords: state.quietWords + words.length };
+  }
 
   const history = [...state.history, ev].slice(-cfg.farWindowFinals);
   const far = reacquired(ctx, state.bullet, history);
   if (far !== null) return { ...initialOutlineState(ctx, far), recent, history: [] };
   const belief = filter(ctx, state, ev);
-  return { bullet: reachedBullet(ctx, state.bullet, belief), belief, recent, history };
+  return {
+    bullet: reachedBullet(ctx, state.bullet, belief),
+    belief,
+    recent,
+    history,
+    quietWords: 0,
+  };
 }
 
 /**

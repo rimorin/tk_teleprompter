@@ -1,5 +1,15 @@
+import { findOutlineBullets } from '../outline';
 import type { ParsedScript } from '../types';
 import { DEFAULT_MATCHER_CONFIG, type MatcherConfig } from './config';
+import { createOutlineContext, type OutlineContext } from './outline';
+
+/** Consecutive outline bullets (no prose between them), tracked by bullet, not word by word. */
+export type OutlineRun = {
+  /** First token of the first bullet's line and last token of the last bullet. */
+  startTokenId: number;
+  lastTokenId: number;
+  outline: OutlineContext;
+};
 
 /**
  * Precomputed, script-specific data for matching. Only "matchable" tokens (those with a
@@ -21,6 +31,7 @@ export type MatchContext = {
   idf: number[];
   fillers: Set<string>;
   fuzzyCache: Map<string, boolean>;
+  outlines: OutlineRun[];
 };
 
 function wordKey(word: string): string {
@@ -67,7 +78,22 @@ export function createMatchContext(
     idf,
     fillers: new Set(config.fillerWords.map(wordKey)),
     fuzzyCache: new Map(),
+    outlines: outlineRuns(script, config),
   };
+}
+
+function outlineRuns(script: ParsedScript, config: MatcherConfig): OutlineRun[] {
+  const groups: Array<ReturnType<typeof findOutlineBullets>> = [];
+  for (const b of findOutlineBullets(script, config.outline.maxBulletWords)) {
+    const group = groups[groups.length - 1];
+    if (group && b.startTokenId === group[group.length - 1]!.lastTokenId + 1) group.push(b);
+    else groups.push([b]);
+  }
+  return groups.map((bullets) => ({
+    startTokenId: bullets[0]!.startTokenId,
+    lastTokenId: bullets[bullets.length - 1]!.lastTokenId,
+    outline: createOutlineContext(script, bullets, config),
+  }));
 }
 
 /** Matchable position of the anchor token (last spoken), or -1 before the start. */

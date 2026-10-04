@@ -104,3 +104,14 @@ export const FOUR_DAY_WEEK_TALK: TalkSegment[] = [
   [5, 'we can revisit the on call question in three months'],
   [5, 'thank you'],
 ];
+
+/** Prose read word for word, then outline bullets talked around, then prose again. */
+export const MIXED_OPENING =
+  'Good morning, and thank you for making the time. This year we rebuilt how new customers get started, and I want to tell you what we learned along the way.';
+export const MIXED_CLOSING =
+  'To wrap up: listen to the people who leave, fix the first ten minutes, and measure everything. Thank you very much, and I am happy to take your questions.';
+export const MIXED_SCRIPT = [
+  MIXED_OPENING,
+  ONBOARDING_OUTLINE.split('\n').slice(0, -1).join('\n'), // without "Questions"
+  MIXED_CLOSING,
+].join('\n\n');
