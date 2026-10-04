@@ -1161,6 +1161,91 @@ input[type='range']::-moz-range-thumb {
   background: linear-gradient(90deg, var(--accent) 0 3px, var(--accent-soft) 3px);
 }
 
+/* Fixed-speed scroll versus following your voice (About). */
+.pace {
+  margin: 0.6rem 0 0;
+  padding: 0.9rem 0.9rem 0.75rem;
+}
+.pace svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.pace-axis {
+  stroke: var(--border-strong);
+}
+.pace-gap {
+  fill: var(--error);
+  opacity: 0.14;
+}
+.pace-scroll {
+  fill: none;
+  stroke: var(--fg-muted);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 6;
+}
+.pace-you {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.pace-label {
+  font: 500 13px var(--font-ui);
+  fill: var(--fg-muted);
+}
+.pace-note {
+  font: 600 14px var(--font-ui);
+  fill: var(--error);
+}
+.pace-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+}
+.pace-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pace-legend i {
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+}
+.pace-legend .key-you {
+  background: var(--accent);
+}
+.pace-legend .key-scroll {
+  background: repeating-linear-gradient(90deg, var(--fg-muted) 0 6px, transparent 6px 10px);
+}
+.pace-legend .key-gap {
+  width: 12px;
+  height: 12px;
+  background: color-mix(in srgb, var(--error) 22%, transparent);
+}
+
+/* Who a full script suits (About). */
+.for-whom {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+}
+.for-whom p {
+  margin: 0;
+}
+.for-whom ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
 /* When the talk doesn't go to plan. */
 .off-script {
   display: grid;

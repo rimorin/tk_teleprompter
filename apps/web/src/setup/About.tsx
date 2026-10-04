@@ -84,24 +84,125 @@ const PROMPTER_BARS: Array<[number, 'spoken' | 'current' | 'next']> = [
   [58, 'next'],
 ];
 
-/** What research and speaking coaches say about looking down at notes. */
+/** What research and speaking coaches say about looking down at notes (sources in the README). */
 const FACTS: Array<{ icon: ReactNode; title: string; text: string }> = [
   {
     icon: <Eye size={16} aria-hidden />,
     title: 'Eye contact builds trust.',
-    text: 'Audiences rate speakers who look at them as more skilled and honest.',
+    text: 'In a classic study, speakers who made more eye contact were rated as more credible.',
   },
   {
     icon: <ArrowDown size={16} aria-hidden />,
-    title: 'Looking down looks unsure,',
-    text: 'even when you are not.',
+    title: 'Looking down reads as nerves,',
+    text: 'speaking coaches warn, even when you feel fine.',
   },
   {
     icon: <FastForward size={16} aria-hidden />,
-    title: 'Auto-scroll does not wait.',
-    text: 'It keeps moving when you pause for a laugh or a question.',
+    title: 'A fixed-speed scroll does not wait.',
+    text: 'It runs ahead when you pause, and falls behind when you skip.',
   },
 ];
+
+/** When reading a full script makes sense (coaches otherwise suggest speaking from notes). */
+const FOR_WHOM = [
+  'The exact words matter: a statement, a pitch, a eulogy or a toast.',
+  'You are speaking in a second language.',
+  'You are recording a video.',
+  'You want a safety net for nerves.',
+];
+
+/*
+ * Place in the script over one minute, for a speaker who pauses for a laugh and then skips a
+ * sentence (the same story as docs/images/pace.svg, sized for phones). Words at 2.5 per second.
+ */
+const CHART = { w: 400, h: 210, left: 8, right: 392, top: 12, bottom: 196, tMax: 60, pMax: 170 };
+const SPEAKER: Array<[number, number]> = [
+  [0, 0],
+  [20, 50],
+  [28, 50],
+  [45, 92.5],
+  [45, 132.5],
+  [60, 170],
+];
+const FIXED_SCROLL: Array<[number, number]> = [
+  [0, 0],
+  [60, 150],
+];
+/** Where the fixed scroll is off your place: ahead after the pause, behind after the skip. */
+const GAPS: Array<Array<[number, number]>> = [
+  [
+    [20, 50],
+    [28, 70],
+    [45, 112.5],
+    [45, 92.5],
+    [28, 50],
+  ],
+  [
+    [45, 112.5],
+    [60, 150],
+    [60, 170],
+    [45, 132.5],
+  ],
+];
+const cx = (t: number) => CHART.left + ((CHART.right - CHART.left) * t) / CHART.tMax;
+const cy = (p: number) => CHART.bottom - ((CHART.bottom - CHART.top) * p) / CHART.pMax;
+const points = (pts: Array<[number, number]>) =>
+  pts.map(([t, p]) => `${cx(t).toFixed(1)},${cy(p).toFixed(1)}`).join(' ');
+
+function PaceChart() {
+  return (
+    <figure className="card pace">
+      <svg
+        viewBox={`0 0 ${CHART.w} ${CHART.h}`}
+        role="img"
+        aria-label="Place in the script over time. When you pause, a fixed-speed scroll runs ahead of you. When you skip a sentence, it falls behind. Voice following stays on your line."
+      >
+        <line
+          className="pace-axis"
+          x1={CHART.left}
+          y1={CHART.top}
+          x2={CHART.left}
+          y2={CHART.bottom}
+        />
+        <line
+          className="pace-axis"
+          x1={CHART.left}
+          y1={CHART.bottom}
+          x2={CHART.right}
+          y2={CHART.bottom}
+        />
+        {GAPS.map((gap, i) => (
+          <polygon key={i} className="pace-gap" points={points(gap)} />
+        ))}
+        <polyline className="pace-scroll" points={points(FIXED_SCROLL)} />
+        <polyline className="pace-you" points={points(SPEAKER)} />
+        <text className="pace-label" x={CHART.left + 8} y={CHART.top + 12}>
+          Place in script
+        </text>
+        <text className="pace-label" x={CHART.right} y={CHART.bottom - 8} textAnchor="end">
+          Time →
+        </text>
+        <text className="pace-note" x={cx(24)} y={cy(50) + 22} textAnchor="middle">
+          Pause
+        </text>
+        <text className="pace-note" x={cx(45) - 8} y={cy(132.5)} textAnchor="end">
+          Skip
+        </text>
+      </svg>
+      <figcaption className="pace-legend">
+        <span>
+          <i className="key-you" /> You, and this app
+        </span>
+        <span>
+          <i className="key-scroll" /> Fixed-speed scroll
+        </span>
+        <span>
+          <i className="key-gap" /> How far off your place is
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
 
 /** Small habits that make the first talk go smoothly. */
 const TIPS: Array<{ icon: ReactNode; title: string; text: string }> = [
@@ -244,6 +345,24 @@ export function About() {
           </li>
         ))}
       </ul>
+
+      <PaceChart />
+
+      <h3 className="about-heading">Who it’s for</h3>
+      <div className="card for-whom">
+        <p className="muted small">
+          Most coaches suggest speaking from a few notes. A full script still makes sense when:
+        </p>
+        <ul>
+          {FOR_WHOM.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <p className="muted small">
+          Put your phone or tablet on a stand at eye level. Reading from a phone in your hand looks
+          unprepared.
+        </p>
+      </div>
 
       <h3 className="about-heading">How it follows you</h3>
       <ol className="flow" aria-label="How voice following works">

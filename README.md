@@ -48,37 +48,73 @@ Speakers use notes to stay on track. But notes on a phone or tablet cause two pr
 
 **Eye contact builds trust**
 
-In one study, more eye contact made the audience rate the speaker as more skilled and more honest
+In a classic study, speakers who made more eye contact were rated as more credible
 ([Beebe, 1974][beebe]).
 
 </td>
 <td width="33%" valign="top">
 
-**Looking down looks unsure**
+**Looking down reads as nerves**
 
-Even when you are not ([Janicek][janicek]).
+Speaking coaches warn that it signals uncertainty, even when you feel fine ([Janicek][janicek]).
 
 </td>
 <td width="33%" valign="top">
 
-**Auto-scroll does not wait**
+**A fixed-speed scroll doesn't wait**
 
-It keeps moving when you pause for a laugh or a question ([VoiceScroll][voicescroll]). On TV, a
-person scrolls to match the speaker ([Teleprompter.com][operator]), but most talks do not have
-one.
+It keeps moving when you pause, and falls behind when you skip. On TV, a person scrolls to match
+the speaker ([Teleprompter.com][operator]), for a few hundred dollars a day ([UK][rate-uk],
+[US][rate-us]).
 
 </td>
 </tr>
 </table>
 
+<p align="center">
+  <img src="docs/images/pace.svg" width="860" alt="Chart of place in the script over time. The speaker pauses for a laugh, then skips a sentence. A fixed-speed scroll keeps moving during the pause and runs ahead, then falls behind after the skip. Voice following stays on the speaker's line." />
+</p>
+
 **Teleprompter does that job for you.** It listens while you speak, works out where you are in the
 script, and keeps that line in view, so you can look up and your place is still there when you
 look back down.
 
+### Who it's for
+
+Most coaches suggest speaking from a few notes rather than reading a full script
+([example][notes]). A word-for-word script still makes sense when:
+
+- the exact words matter: a statement, a pitch, a eulogy or a toast
+- you are speaking in a second language
+- you are recording a video
+- you want a safety net for nerves
+
+If you speak from a few bullet points, you probably don't need it. If you use it, put your phone
+or tablet on a stand at eye level: reading from a phone in your hand looks unprepared
+([Vital Speeches][phone]).
+
+### How it compares
+
+|                                                                                  | Waits when you pause | Where it runs                   | Cost                                                                                    |
+| -------------------------------------------------------------------------------- | -------------------- | ------------------------------- | --------------------------------------------------------------------------------------- |
+| Notes on your phone                                                              | You scroll yourself  | Any phone                       | Free                                                                                    |
+| Fixed-speed scroll                                                               | No                   | Most teleprompter apps          | Free to paid                                                                            |
+| Human operator                                                                   | Yes                  | A person next to the camera     | A few hundred dollars a day                                                             |
+| Voice-scroll apps, such as [PromptSmart][promptsmart] and [Speakflow][speakflow] | Yes                  | App or browser                  | Free tier, then about $10–15 a month                                                    |
+| **This app**                                                                     | **Yes**              | **Any browser, or your server** | **Free and open source.** The speech service costs about $0.15–0.50 per hour of talking |
+
+What this one adds: your script never leaves your browser, you can host it yourself, the buttons
+work with no network at all, and it copes with talks that go off plan (see below).
+
 [beebe]: https://www.tandfonline.com/doi/abs/10.1080/03634527409378052
 [janicek]: https://janicekperformancegroup.com/dont-look-down-eye-contact-tips-that-transform-your-public-speaking-impact/
-[voicescroll]: https://www.voice-scroll.com/blog/speech-teleprompter-public-speaking-guide
 [operator]: https://www.teleprompter.com/blog/teleprompter-operator
+[rate-uk]: https://floatingharbour.co.uk/hires-and-spaces/equipment-hire/prompting/autocue-ssp17-teleprompter
+[rate-us]: https://www.shoots.video/job/need-teleprompter-operator-for-pharmaceutical-corporate-video/
+[notes]: https://quickanddirtytips.com/?p=60739
+[phone]: https://prorhetoric.com/vital-speeches-editor-sez-no-reading-speeches-off-your-cellular-telephone/
+[promptsmart]: https://apps.apple.com/app/id894811756
+[speakflow]: https://www.speakflow.com/pricing
 
 ## How it works
 
