@@ -1,6 +1,6 @@
 import { loadJson, saveJson } from './storage';
 
-export type ThemeName = 'graphite' | 'cosmic' | 'ember' | 'mono' | 'daylight';
+export type ThemeName = 'graphite' | 'cosmic' | 'ember' | 'aurora' | 'daylight';
 /** 'system' follows the device's appearance: Graphite when dark, Daylight when light. */
 export type Theme = 'system' | ThemeName;
 
@@ -8,7 +8,7 @@ export const THEMES: Array<{ id: ThemeName; name: string }> = [
   { id: 'graphite', name: 'Graphite' },
   { id: 'cosmic', name: 'Cosmic Night' },
   { id: 'ember', name: 'Ember' },
-  { id: 'mono', name: 'Mono' },
+  { id: 'aurora', name: 'Aurora' },
   { id: 'daylight', name: 'Daylight' },
 ];
 export type Typeface = 'sans' | 'serif';
@@ -54,8 +54,12 @@ export function defaultSettingsFor(viewportWidth: number): PresenterSettings {
 
 const STORAGE_KEY = 'teleprompter.settings.v1';
 const THEME_IDS: Theme[] = ['system', ...THEMES.map((t) => t.id)];
-/** Themes saved before named themes existed. */
-const LEGACY_THEMES: Record<string, ThemeName> = { dark: 'graphite', light: 'daylight' };
+/** Themes saved earlier that no longer exist. */
+const LEGACY_THEMES: Record<string, ThemeName> = {
+  dark: 'graphite',
+  light: 'daylight',
+  mono: 'graphite',
+};
 const TYPEFACES: Typeface[] = ['sans', 'serif'];
 
 function clamp(n: unknown, { min, max }: { min: number; max: number }, fallback: number) {

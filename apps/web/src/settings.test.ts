@@ -21,5 +21,7 @@ describe('settings', () => {
     // Dark and light from before named themes keep their look.
     expect(sanitizeSettings({ theme: 'dark' as never }, phone).theme).toBe('graphite');
     expect(sanitizeSettings({ theme: 'light' as never }, phone).theme).toBe('daylight');
+    // Mono was merged into Graphite.
+    expect(sanitizeSettings({ theme: 'mono' as never }, phone).theme).toBe('graphite');
   });
 });

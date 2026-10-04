@@ -31,7 +31,7 @@
 [data-theme='graphite'],
 [data-theme='cosmic'],
 [data-theme='ember'],
-[data-theme='mono'] {
+[data-theme='aurora'] {
   color-scheme: dark;
   --live: #ff5d5d;
   --ok: #45d39a;
@@ -47,22 +47,22 @@
   --error: #b3261e;
 }
 
-/* Graphite: cool neutral, one soft blue accent. */
+/* Graphite: neutral monochrome, near-black with a soft white accent (the default dark). */
 [data-theme='graphite'] {
-  --bg: #0b0c0e;
-  --bg-elev: #131518;
-  --bg-hover: #1b1e23;
-  --border: #24272d;
-  --border-strong: #363b44;
-  --fg: #eceef1;
-  --fg-muted: #8f959f;
-  --fg-spoken: #535862;
-  --fg-tentative: #9fb3e0;
-  --glow: rgba(138, 180, 255, 0.5);
-  --accent: #8ab4ff;
-  --accent-fg: #0a1020;
-  --accent-soft: rgba(138, 180, 255, 0.13);
-  --topbar-bg: #0e0f12;
+  --bg: #0a0a0a;
+  --bg-elev: #141414;
+  --bg-hover: #1c1c1c;
+  --border: #262626;
+  --border-strong: #3a3a3a;
+  --fg: #f5f5f5;
+  --fg-muted: #a1a1a1;
+  --fg-spoken: #575757;
+  --fg-tentative: #d4d4d4;
+  --glow: rgba(255, 255, 255, 0.4);
+  --accent: #ededed;
+  --accent-fg: #0a0a0a;
+  --accent-soft: rgba(237, 237, 237, 0.12);
+  --topbar-bg: #0d0d0d;
 }
 
 /* Cosmic Night: deep indigo with a faint, still nebula; violet accent. */
@@ -104,22 +104,27 @@
   --topbar-bg: #120f0c;
 }
 
-/* Mono: greyscale with maximum contrast, for harsh light. */
-[data-theme='mono'] {
-  --bg: #000000;
-  --bg-elev: #0f0f0f;
-  --bg-hover: #1a1a1a;
-  --border: #262626;
-  --border-strong: #404040;
-  --fg: #ffffff;
-  --fg-muted: #a3a3a3;
-  --fg-spoken: #5c5c5c;
-  --fg-tentative: #d4d4d4;
-  --glow: rgba(255, 255, 255, 0.4);
-  --accent: #ffffff;
-  --accent-fg: #000000;
-  --accent-soft: rgba(255, 255, 255, 0.12);
-  --topbar-bg: #050505;
+/* Aurora: deep sea-teal with an aqua accent and a faint glow at the top. */
+[data-theme='aurora'] {
+  --bg: #061416;
+  --bg-elev: #0c1e21;
+  --bg-hover: #12292d;
+  --border: #1b3438;
+  --border-strong: #2a4a4f;
+  --fg: #e6f4f3;
+  --fg-muted: #8fb1b0;
+  --fg-spoken: #4a6a6b;
+  --fg-tentative: #9ee6f2;
+  --glow: rgba(92, 207, 230, 0.5);
+  --accent: #5ccfe6;
+  --accent-fg: #04191d;
+  --accent-soft: rgba(92, 207, 230, 0.14);
+  --topbar-bg: #081a1c;
+  --backdrop: radial-gradient(
+    ellipse 90% 45% at 50% -10%,
+    rgba(45, 212, 191, 0.1),
+    transparent 70%
+  );
 }
 
 /* Daylight: cool and clean. */
