@@ -173,6 +173,13 @@ describe('App (manual mode)', () => {
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toMatch(/^Good morning/);
   });
 
+  it('credits the developer with a link to their site', () => {
+    render(<App />);
+    const link = screen.getByRole('link', { name: 'John Eric' });
+    expect(link).toHaveAttribute('href', 'https://rimorin.com');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
   it('offers Undo after clearing the script, until something new is added', async () => {
     const user = userEvent.setup();
     render(<App />);

@@ -1395,7 +1395,6 @@ input[type='range']::-moz-range-thumb {
   font-size: 0.95rem;
 }
 .tip-bar {
-  justify-content: flex-start;
   color: var(--fg-muted);
 }
 .tip-bar span {
@@ -1652,6 +1651,27 @@ input[type='range']::-moz-range-thumb {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+.credit {
+  margin: 0;
+  padding: 0 0.15rem;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+.credit a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap); /* a full tap target, though the text is small */
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+@media (hover: hover) {
+  .credit a:hover {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
 }
 
 /* The one main action. Phones: a bar pinned within thumb reach. */

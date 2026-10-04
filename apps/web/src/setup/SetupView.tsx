@@ -387,17 +387,10 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
           </section>
         )}
 
-        {cleared !== null && empty && (
+        {cleared !== null && (
           <div className="undo-bar" role="status">
             <span>Script cleared.</span>
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                onTextChange(cleared);
-                setCleared(null);
-              }}
-            >
+            <button type="button" className="btn ghost" onClick={() => onTextChange(cleared)}>
               <RotateCcw size={15} aria-hidden /> Undo
             </button>
           </div>
@@ -507,6 +500,12 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <AlertCircle size={15} aria-hidden /> {importError ?? lengthError}
           </p>
         )}
+        <p className="credit">
+          Developed by{' '}
+          <a href="https://rimorin.com" target="_blank" rel="noopener noreferrer">
+            John Eric
+          </a>
+        </p>
       </main>
 
       {themeOpen && (

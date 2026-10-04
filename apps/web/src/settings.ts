@@ -4,12 +4,12 @@ export type ThemeName = 'graphite' | 'cosmic' | 'ember' | 'mono' | 'daylight';
 /** 'system' follows the device's appearance: Graphite when dark, Daylight when light. */
 export type Theme = 'system' | ThemeName;
 
-export const THEMES: Array<{ id: ThemeName; name: string; scheme: 'dark' | 'light' }> = [
-  { id: 'graphite', name: 'Graphite', scheme: 'dark' },
-  { id: 'cosmic', name: 'Cosmic Night', scheme: 'dark' },
-  { id: 'ember', name: 'Ember', scheme: 'dark' },
-  { id: 'mono', name: 'Mono', scheme: 'dark' },
-  { id: 'daylight', name: 'Daylight', scheme: 'light' },
+export const THEMES: Array<{ id: ThemeName; name: string }> = [
+  { id: 'graphite', name: 'Graphite' },
+  { id: 'cosmic', name: 'Cosmic Night' },
+  { id: 'ember', name: 'Ember' },
+  { id: 'mono', name: 'Mono' },
+  { id: 'daylight', name: 'Daylight' },
 ];
 export type Typeface = 'sans' | 'serif';
 
