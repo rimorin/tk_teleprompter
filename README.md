@@ -11,7 +11,7 @@ stays at eye level, and the words you have already said fade out.
 
 <br />
 
-<img src="docs/images/presenter-desktop.png" alt="The presenter view following a speaker: spoken text is dimmed, the phrase being heard is a softer warm colour, and the next word is boxed and underlined on the reading line." width="860" />
+<img src="docs/images/presenter-desktop.png" alt="The presenter view following a speaker: spoken text is dimmed, the phrase being heard is tinted violet (the Cosmic Night theme), and the next word is boxed and underlined on the reading line." width="860" />
 
 <sub>The presenter view in the middle of a talk (recorded with the built-in practice mode).</sub>
 
@@ -86,7 +86,7 @@ look back down.
 <tr>
 <td width="45%" align="center" valign="top">
 
-<img src="docs/images/following.gif" width="300" alt="Animation of the presenter view on a phone: as the simulated speaker talks, the spoken words fade, the words being heard turn warm, and the boxed next word moves along the reading line." />
+<img src="docs/images/following.gif" width="300" alt="Animation of the presenter view on a phone: as the simulated speaker talks, the spoken words fade, the words being heard turn a dimmer grey, and the boxed next word moves along the reading line." />
 
 <sub>Practice mode reading the sample talk, in real time.</sub>
 
@@ -111,13 +111,13 @@ The script follows you. Tap any word to jump there yourself.
 
 ### Reading the screen
 
-| You see                 | It means                                    |
-| ----------------------- | ------------------------------------------- |
-| Faded text              | You have said this                          |
-| Warm, dimmer text       | What the app is hearing right now           |
-| Boxed, underlined word  | Your next word                              |
-| ▶ ◀ markers at the edge | The reading line. Your line stays here      |
-| Dashed underline        | Where a **Jump to …** button would take you |
+| You see                    | It means                                    |
+| -------------------------- | ------------------------------------------- |
+| Faded text                 | You have said this                          |
+| Tinted, dimmer text        | What the app is hearing right now           |
+| Boxed, underlined word     | Your next word                              |
+| Glowing marks at each edge | The reading line. Your line stays here      |
+| Dashed underline           | Where a **Jump to …** button would take you |
 
 ### Made for talks that don't go to plan
 
@@ -145,7 +145,7 @@ The script follows you. Tap any word to jump there yourself.
 **Made for the stage**
 
 - Large text. Change the size, line spacing, column width and font.
-- Dark and light themes.
+- Five themes (Graphite, Cosmic Night, Ember, Aurora and Daylight), or match your device.
 - Mirrored text for teleprompter glass.
 - Move the reading line. By default it sits near the top, close to your camera.
 - Smooth scrolling that ignores tiny moves and respects "reduce motion".
@@ -195,7 +195,7 @@ The script follows you. Tap any word to jump there yourself.
 <tr>
 <td align="center"><img src="docs/images/setup-phone.png" width="240" alt="Setup screen on a phone with the script editor and a Start presenting button." /><br /><sub>Add your script</sub></td>
 <td align="center"><img src="docs/images/presenter-phone.png" width="240" alt="Presenter view on a phone following along, with a large stop button in the bottom dock." /><br /><sub>Present hands-free</sub></td>
-<td align="center"><img src="docs/images/settings-phone.png" width="240" alt="Settings sheet on a phone with the speech service choice (Standard or Fastest) above the theme and typeface controls." /><br /><sub>Choose your speech service and look</sub></td>
+<td align="center"><img src="docs/images/settings-phone.png" width="240" alt="Settings sheet on a phone with the speech service choice (Standard or Fastest) above the theme picker." /><br /><sub>Choose your speech service and look</sub></td>
 </tr>
 </table>
 
@@ -332,12 +332,12 @@ sequenceDiagram
     You->>App: "Today I want to share…"
     App->>DG: audio, every 100 ms
     DG-->>App: guess: "today I want"
-    Note over App: Warm highlight moves ahead<br/>(can still change)
+    Note over App: Highlight moves ahead<br/>(can still change)
     DG-->>App: final: "today I want to share"
     Note over App: Words fade as spoken<br/>(locked in, never moves back)
 ```
 
-A guess can even carry the warm highlight across a skipped sentence before the final result
+A guess can even carry the highlight across a skipped sentence before the final result
 arrives, so the screen catches up sooner.
 
 </details>
@@ -346,6 +346,10 @@ arrives, so the screen catches up sooner.
 
 It compares the last ~8 words you said with the script. It allows for misheard words, extra
 words, missed words, "um"s and spoken numbers ("twenty twenty five" = "2025").
+
+<img src="docs/images/matcher.svg" width="860" alt="Animation generated from the real matcher. Words heard appear as chips. Interim words move a dashed tentative cursor through the script; a final result moves the solid confirmed cursor and dims the spoken words. The filler 'uh' is ignored, 'twenty three' matches 'twenty-three', and after a skipped sentence the cursor waits for five matching words before catching up." />
+
+<sub>Every cursor position in this animation comes from running the real matcher on these words.</sub>
 
 <details>
 <summary><b>The decision, step by step</b></summary>
