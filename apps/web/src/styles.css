@@ -454,6 +454,8 @@ select {
   font-size: 0.95rem;
 }
 .slider-head output {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1642,7 +1644,8 @@ input[type='range']::-moz-range-thumb {
 .stats dd {
   margin: 0;
   color: var(--fg);
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .doc-private {
@@ -1728,6 +1731,9 @@ input[type='range']::-moz-range-thumb {
 /* ------------------------------------------------------------------ Presenter (phone first) */
 
 .presenter {
+  /* Frosted chrome: the script shows faintly through the strip and dock as it scrolls away. */
+  --chrome-bg: color-mix(in srgb, var(--topbar-bg) 82%, transparent);
+  --chrome-blur: blur(18px) saturate(1.4);
   position: fixed;
   inset: 0;
   height: 100dvh;
@@ -1746,7 +1752,9 @@ input[type='range']::-moz-range-thumb {
   gap: 0.25rem;
   height: calc(var(--strip-h) + var(--safe-top));
   padding: var(--safe-top) max(6px, var(--safe-right)) 0 max(6px, var(--safe-left));
-  background: var(--topbar-bg);
+  background: var(--chrome-bg);
+  -webkit-backdrop-filter: var(--chrome-blur);
+  backdrop-filter: var(--chrome-blur);
   border-bottom: 1px solid var(--border);
   font-family: var(--font-ui);
   transition:
@@ -1779,6 +1787,7 @@ input[type='range']::-moz-range-thumb {
   border-radius: var(--radius-sm);
   background: transparent;
   font: inherit;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1801,6 +1810,7 @@ input[type='range']::-moz-range-thumb {
   min-width: var(--tap);
   padding-right: 0.5rem;
   text-align: right;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
@@ -1831,7 +1841,9 @@ input[type='range']::-moz-range-thumb {
   justify-content: space-evenly;
   height: calc(var(--dock-h) + var(--safe-bottom));
   padding: 0 max(8px, var(--safe-right)) var(--safe-bottom) max(8px, var(--safe-left));
-  background: var(--topbar-bg);
+  background: var(--chrome-bg);
+  -webkit-backdrop-filter: var(--chrome-blur);
+  backdrop-filter: var(--chrome-blur);
   border-top: 1px solid var(--border);
   font-family: var(--font-ui);
   transition:
@@ -1864,18 +1876,19 @@ input[type='range']::-moz-range-thumb {
 .mic-btn[data-live] {
   background: var(--live);
   color: #fff;
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 55%, transparent);
-  animation: live-ring 1.8s infinite;
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--live) 22%, transparent),
+    0 0 22px color-mix(in srgb, var(--live) 45%, transparent);
+  animation: live-glow 2.4s ease-in-out infinite alternate;
 }
 .mic-btn[data-connecting] {
   animation: pulse 0.8s infinite alternate;
 }
-@keyframes live-ring {
-  70% {
-    box-shadow: 0 0 0 12px transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
+@keyframes live-glow {
+  to {
+    box-shadow:
+      0 0 0 6px color-mix(in srgb, var(--live) 14%, transparent),
+      0 0 32px color-mix(in srgb, var(--live) 60%, transparent);
   }
 }
 @media (hover: hover) {
@@ -1986,15 +1999,15 @@ input[type='range']::-moz-range-thumb {
   container-type: size;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  /* Text fades out at the strip and dock instead of being cut off under them. */
+  /* Text fades out under the strip and dock instead of being cut off at their edge. */
   --fade-top: calc(var(--strip-h) + var(--safe-top));
   --fade-bottom: calc(var(--dock-h) + var(--safe-bottom));
   --fade: linear-gradient(
     to bottom,
-    transparent var(--fade-top),
+    transparent calc(var(--fade-top) * 0.8),
     #000 calc(var(--fade-top) + 2.5rem),
     #000 calc(100% - var(--fade-bottom) - 3rem),
-    transparent calc(100% - var(--fade-bottom))
+    transparent calc(100% - var(--fade-bottom) * 0.8)
   );
   -webkit-mask-image: var(--fade);
   mask-image: var(--fade);
@@ -2016,25 +2029,26 @@ input[type='range']::-moz-range-thumb {
     var(--accent-soft) 88%,
     transparent
   );
-  opacity: 0.8;
+  opacity: 0.55;
 }
+/* Glowing ticks at both edges mark the line, like a head-up display. */
 .reading-zone::before,
 .reading-zone::after {
   content: '';
   position: absolute;
   top: 50%;
-  width: 0;
-  height: 0;
-  border: 7px solid transparent;
+  width: 3px;
+  height: 56%;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
   transform: translateY(-50%);
 }
 .reading-zone::before {
-  left: 0;
-  border-left: 9px solid var(--accent);
+  left: 4px;
 }
 .reading-zone::after {
-  right: 0;
-  border-right: 9px solid var(--accent);
+  right: 4px;
 }
 
 .content {
@@ -2352,15 +2366,11 @@ input[type='range']::-moz-range-thumb {
     padding-left: 2rem;
     padding-right: 2rem;
   }
-  .reading-zone::before,
-  .reading-zone::after {
-    border-width: 9px;
-  }
   .reading-zone::before {
-    border-left-width: 12px;
+    left: 10px;
   }
   .reading-zone::after {
-    border-right-width: 12px;
+    right: 10px;
   }
   .diagnostics {
     top: auto;
