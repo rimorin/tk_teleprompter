@@ -10,7 +10,7 @@ import {
 import { pickAudioFormat } from '../audio/micCapture';
 import { saveProviderChoice } from './asrProvider';
 
-const mic = { stop: vi.fn(async () => {}), restart: vi.fn() };
+const mic = { stop: vi.fn(async () => {}), restart: vi.fn(), level: () => 0 };
 
 vi.mock('../audio/micCapture', () => ({
   MicError: class extends Error {},

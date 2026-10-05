@@ -281,6 +281,9 @@ export function useLiveSession(handlers: Handlers) {
     handlersRef.current.onStopped();
   }, [cancelRetry]);
 
+  /** Microphone loudness (0 to 1) while it is on, else 0. Stable across renders. */
+  const getLevel = useCallback(() => micRef.current?.level() ?? 0, []);
+
   /** Live timing for Diagnostics, or null when no session is connected. Stable across renders. */
   const getMetrics = useCallback((): AsrMetrics | null => clientRef.current?.metrics() ?? null, []);
 
@@ -291,6 +294,7 @@ export function useLiveSession(handlers: Handlers) {
     phase,
     error,
     getMetrics,
+    getLevel,
     clearError: () => setError(null),
     start,
     stop,

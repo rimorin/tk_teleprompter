@@ -287,6 +287,23 @@ export function PresenterView({
     onNeedsAccessCode: (rejected) => setCodePrompt({ rejected }),
   });
   const micOn = source === 'microphone';
+  // The ring around the mic follows your voice level: you can see it hears you.
+  const micBtnRef = useRef<HTMLButtonElement>(null);
+  const { getLevel } = live;
+  useEffect(() => {
+    const btn = micBtnRef.current;
+    if (!micOn || !btn) return;
+    let frame = 0;
+    const tick = () => {
+      btn.style.setProperty('--level', getLevel().toFixed(3));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      btn.style.removeProperty('--level');
+    };
+  }, [micOn, getLevel]);
   const showHint = !hintSeen && source === 'none' && server.status !== 'checking';
   const toggleMic = () => {
     if (micOn) {
@@ -505,6 +522,7 @@ export function PresenterView({
           </button>
         ) : (
           <button
+            ref={micBtnRef}
             type="button"
             className="mic-btn"
             data-live={micOn || undefined}
@@ -515,6 +533,7 @@ export function PresenterView({
             aria-label={micOn ? 'Stop microphone' : 'Start microphone'}
             title="Follow your voice (M). Your voice is sent to the speech service only while on."
           >
+            <span className="mic-ring" aria-hidden />
             {micOn ? (
               <Square size={22} aria-hidden fill="currentColor" />
             ) : (

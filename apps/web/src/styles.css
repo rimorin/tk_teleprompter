@@ -38,9 +38,12 @@
   --warn: #f5b04a;
   --error: #ff7b7b;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  /* Glass: a hairline of light along the top edge of floating surfaces. */
+  --edge: rgba(255, 255, 255, 0.09);
 }
 [data-theme='daylight'] {
   color-scheme: light;
+  --edge: rgba(255, 255, 255, 0.9);
   --live: #d93636;
   --ok: #1c9a67;
   --warn: #b7791f;
@@ -178,6 +181,14 @@ body {
 }
 .app {
   min-height: 100dvh;
+  background-image:
+    var(--backdrop, none),
+    radial-gradient(
+      ellipse 80% 38% at 50% -8%,
+      color-mix(in srgb, var(--accent) 11%, transparent),
+      transparent 70%
+    );
+  background-attachment: fixed;
 }
 button,
 select,
@@ -284,10 +295,13 @@ h3 {
   color: var(--fg-muted);
 }
 .btn.primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 55%), var(--accent);
   border-color: var(--accent);
   color: var(--accent-fg);
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 6px 20px color-mix(in srgb, var(--accent) 32%, transparent);
 }
 .btn.large {
   width: 100%;
@@ -1433,8 +1447,11 @@ input[type='range']::-moz-range-thumb {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), transparent 60%), var(--accent);
   color: var(--accent-fg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .app-header .segment > span {
   min-height: 34px;
@@ -1501,16 +1518,22 @@ input[type='range']::-moz-range-thumb {
   font-family: var(--font-serif);
   font-size: 17px; /* >= 16px so iOS Safari doesn't zoom on focus */
   line-height: 1.6;
-  background: var(--bg-elev);
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
   border: 1px solid var(--border);
   border-radius: 14px;
+  box-shadow: inset 0 1px 0 var(--edge);
   resize: none; /* it already fills the space */
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.2s;
 }
 .dropzone textarea:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    0 0 0 3px var(--accent-soft),
+    0 0 28px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .dropzone textarea::placeholder {
   color: var(--fg-muted);
@@ -1678,7 +1701,8 @@ input[type='range']::-moz-range-thumb {
   padding: 0 0.75rem;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--bg-elev);
+  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  box-shadow: inset 0 1px 0 var(--edge);
   color: var(--fg-muted);
   font-size: 0.85rem;
   font-weight: 600;
@@ -1688,6 +1712,9 @@ input[type='range']::-moz-range-thumb {
 .voice-chip[data-status='ready'] {
   color: var(--ok);
   border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    0 0 14px color-mix(in srgb, var(--ok) 14%, transparent);
 }
 .voice-chip[data-status='code'] {
   color: var(--warn);
@@ -1739,6 +1766,12 @@ input[type='range']::-moz-range-thumb {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+.stats dt {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .doc-private {
   display: inline-flex;
   align-items: center;
@@ -1783,8 +1816,12 @@ input[type='range']::-moz-range-thumb {
   padding: 0.75rem var(--gutter) calc(0.75rem + var(--safe-bottom));
   border-top: 1px solid var(--border);
   border-radius: 20px 20px 0 0;
-  background: var(--bg-elev);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--bg-elev) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 var(--edge),
+    0 -8px 24px rgba(0, 0, 0, 0.25);
 }
 .start-bar p {
   margin: 0;
@@ -1849,8 +1886,9 @@ input[type='range']::-moz-range-thumb {
 
 .presenter {
   /* Frosted chrome: the script shows faintly through the strip and dock as it scrolls away. */
-  --chrome-bg: color-mix(in srgb, var(--topbar-bg) 82%, transparent);
-  --chrome-blur: blur(18px) saturate(1.4);
+  --chrome-bg: color-mix(in srgb, var(--topbar-bg) 70%, transparent);
+  --chrome-blur: blur(20px) saturate(1.6);
+  --chrome-shadow: inset 0 1px 0 var(--edge), var(--shadow);
   position: fixed;
   inset: 0;
   height: 100dvh;
@@ -1858,21 +1896,23 @@ input[type='range']::-moz-range-thumb {
   overscroll-behavior: none;
 }
 
-/* Top strip: status at a glance, clear of the notch. */
+/* Top strip: a floating glass capsule with status at a glance, clear of the notch. */
 .topstrip {
   position: absolute;
-  inset: 0 0 auto;
+  inset: calc(var(--safe-top) + 4px) max(8px, var(--safe-right)) auto max(8px, var(--safe-left));
   z-index: 10;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.25rem;
-  height: calc(var(--strip-h) + var(--safe-top));
-  padding: var(--safe-top) max(6px, var(--safe-right)) 0 max(6px, var(--safe-left));
+  height: calc(var(--strip-h) - 4px);
+  padding: 0 2px;
   background: var(--chrome-bg);
   -webkit-backdrop-filter: var(--chrome-blur);
   backdrop-filter: var(--chrome-blur);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--chrome-shadow);
   font-family: var(--font-ui);
   transition:
     opacity 0.35s var(--ease),
@@ -1935,33 +1975,42 @@ input[type='range']::-moz-range-thumb {
 }
 .progress {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 14px;
+  right: 14px;
   bottom: -1px;
   height: 2px;
+  border-radius: 2px;
   overflow: hidden;
 }
+/* A beam of light along the capsule's lower edge. */
 .progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 30%, transparent),
+    var(--accent)
+  );
+  box-shadow: 0 0 8px var(--accent);
   transform-origin: left;
   transition: transform 0.5s var(--ease);
 }
 
-/* Bottom dock: primary controls within thumb reach. */
+/* Bottom dock: primary controls within thumb reach, on a floating glass bar. */
 .dock {
   position: absolute;
-  inset: auto 0 0;
+  inset: auto max(8px, var(--safe-right)) calc(8px + var(--safe-bottom)) max(8px, var(--safe-left));
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-evenly;
-  height: calc(var(--dock-h) + var(--safe-bottom));
-  padding: 0 max(8px, var(--safe-right)) var(--safe-bottom) max(8px, var(--safe-left));
+  height: calc(var(--dock-h) - 8px);
+  padding: 0 4px;
   background: var(--chrome-bg);
   -webkit-backdrop-filter: var(--chrome-blur);
   backdrop-filter: var(--chrome-blur);
-  border-top: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--chrome-shadow);
   font-family: var(--font-ui);
   transition:
     opacity 0.35s var(--ease),
@@ -1983,30 +2032,46 @@ input[type='range']::-moz-range-thumb {
   color: var(--fg-muted);
 }
 .mic-btn {
+  position: relative;
+  top: -10px;
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--accent);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(255, 255, 255, 0.35), transparent 60%), var(--accent);
   color: var(--accent-fg);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 4px var(--bg),
+    0 8px 22px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .mic-btn[data-live] {
-  background: var(--live);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(255, 255, 255, 0.3), transparent 60%), var(--live);
   color: #fff;
   box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--live) 22%, transparent),
-    0 0 22px color-mix(in srgb, var(--live) 45%, transparent);
-  animation: live-glow 2.4s ease-in-out infinite alternate;
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 4px var(--bg),
+    0 0 26px color-mix(in srgb, var(--live) 50%, transparent);
 }
 .mic-btn[data-connecting] {
   animation: pulse 0.8s infinite alternate;
 }
-@keyframes live-glow {
-  to {
-    box-shadow:
-      0 0 0 6px color-mix(in srgb, var(--live) 14%, transparent),
-      0 0 32px color-mix(in srgb, var(--live) 60%, transparent);
-  }
+/* Live: a ring that swells and brightens with your voice (--level, 0 to 1, set per frame). */
+.mic-ring {
+  display: none;
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid var(--live);
+  opacity: calc(0.25 + var(--level, 0) * 0.75);
+  transform: scale(calc(1 + var(--level, 0) * 0.18));
+  box-shadow: 0 0 calc(4px + var(--level, 0) * 22px)
+    color-mix(in srgb, var(--live) 70%, transparent);
+  pointer-events: none;
+}
+.mic-btn[data-live] .mic-ring {
+  display: block;
 }
 @media (hover: hover) {
   .dock-btn:hover:not(:disabled) {
@@ -2020,11 +2085,11 @@ input[type='range']::-moz-range-thumb {
 /* Mouse devices: controls fade while tracking runs smoothly (see useIdle). */
 .presenter[data-idle] .topstrip:not(:has(:focus-visible)) {
   opacity: 0;
-  transform: translateY(-100%);
+  transform: translateY(calc(-100% - 8px - var(--safe-top)));
 }
 .presenter[data-idle] .dock:not(:has(:focus-visible)) {
   opacity: 0;
-  transform: translateY(100%);
+  transform: translateY(calc(100% + 16px + var(--safe-bottom)));
 }
 .presenter[data-idle] {
   cursor: none;
@@ -2036,14 +2101,22 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
-  height: 30px;
-  padding: 0 0.75rem;
+  height: 28px;
+  padding: 0 0.7rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--fg-muted);
   background: var(--bg-hover);
   white-space: nowrap;
+}
+.status-hint {
+  letter-spacing: 0;
+  text-transform: none;
 }
 /* "Mic off" is already shown by the mic button; keep it for screen readers only. */
 .status[data-status='idle'] {
@@ -2056,10 +2129,11 @@ input[type='range']::-moz-range-thumb {
 }
 .status-dot {
   flex: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 6px currentColor;
   opacity: 0.7;
 }
 .status-hint {
@@ -2263,8 +2337,15 @@ input[type='range']::-moz-range-thumb {
   margin: -0.18em -0.4em;
   padding: 0.18em 0.4em;
   border-radius: 0.4em;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  box-shadow: inset 0.2em 0 0 var(--accent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    color-mix(in srgb, var(--accent) 8%, transparent)
+  );
+  box-shadow:
+    inset 0.2em 0 0 var(--accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 0 1.4em color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .focus-marker[data-bullet]::after {
   display: none;
@@ -2323,14 +2404,17 @@ input[type='range']::-moz-range-thumb {
   font-family: var(--font-ui);
 }
 .toast {
+  --toast-bg: color-mix(in srgb, var(--bg-elev) 82%, transparent);
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.6rem 0.5rem 0.6rem 0.9rem;
-  border-radius: 12px;
-  background: var(--bg-elev);
+  border-radius: 14px;
+  background: var(--toast-bg);
+  -webkit-backdrop-filter: var(--chrome-blur);
+  backdrop-filter: var(--chrome-blur);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  box-shadow: var(--chrome-shadow);
   font-size: 0.92rem;
   animation: toast-in 0.25s var(--ease);
 }
@@ -2356,7 +2440,7 @@ input[type='range']::-moz-range-thumb {
   bottom: -7px;
   width: 12px;
   height: 12px;
-  background: var(--bg-elev);
+  background: var(--toast-bg);
   border-right: 1px solid var(--accent);
   border-bottom: 1px solid var(--accent);
   transform: translateX(-50%) rotate(45deg);
@@ -2374,7 +2458,7 @@ input[type='range']::-moz-range-thumb {
   border-color: var(--accent);
   box-shadow:
     0 0 0 3px var(--accent-soft),
-    var(--shadow);
+    var(--chrome-shadow);
   cursor: pointer;
 }
 .toast.jump > svg {
@@ -2444,6 +2528,7 @@ input[type='range']::-moz-range-thumb {
     display: none;
   }
   .mic-btn {
+    top: 0;
     width: 50px;
     height: 50px;
   }
@@ -2483,9 +2568,11 @@ input[type='range']::-moz-range-thumb {
     height: var(--dock-h);
     padding: 0 12px;
     gap: 0.5rem;
-    border: 1px solid var(--border);
     border-radius: 999px;
-    box-shadow: var(--shadow);
+  }
+  /* The taller floating dock holds the mic: no need to lift it. */
+  .mic-btn {
+    top: 0;
   }
   .presenter[data-idle] .dock:not(:has(:focus-visible)) {
     transform: translate(50%, calc(100% + 24px));
@@ -2526,6 +2613,9 @@ input[type='range']::-moz-range-thumb {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+  .mic-ring {
+    transform: none;
   }
 }
 

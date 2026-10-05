@@ -6,6 +6,7 @@ import {
 } from '@teleprompter/shared';
 import workletUrl from './pcm-worklet.ts?worker&url';
 import { canEncodeOpusPackets, createOpusPacketizer } from './opusPackets';
+import { createVoiceLevel } from './voiceLevel';
 
 type MicErrorCode =
   | 'insecure_context'
@@ -38,7 +39,27 @@ export type MicCapture = {
    * its own container header (leftover chunks of the old one are dropped); PCM needs nothing.
    */
   restart: () => void;
+  /** Current input loudness, 0 (silence) to 1 (loud speech), for a level display. */
+  level: () => number;
 };
+
+/**
+ * Voice level of `source` (see createVoiceLevel) from an analyser's RMS loudness. Computed in
+ * the browser only, for display; the audio itself is never analysed further.
+ */
+function levelMeter(ctx: AudioContext, source: AudioNode): () => number {
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  const voice = createVoiceLevel();
+  return () => {
+    analyser.getFloatTimeDomainData(samples);
+    let sum = 0;
+    for (const v of samples) sum += v * v;
+    return voice(10 * Math.log10(sum / samples.length + 1e-12));
+  };
+}
 
 const OPUS_TYPES = [
   { mimeType: 'audio/webm;codecs=opus', container: 'webm' },
@@ -167,6 +188,16 @@ function startOpus(
     for (const track of stream.getTracks()) track.stop();
     throw new MicError('unsupported');
   }
+  // MediaRecorder has no audio graph to read the level from: a small one just for the meter.
+  let meterCtx: AudioContext | null = null;
+  let level = () => 0;
+  try {
+    meterCtx = new AudioContext();
+    level = levelMeter(meterCtx, meterCtx.createMediaStreamSource(stream));
+    if (meterCtx.state === 'suspended') void meterCtx.resume().catch(() => {});
+  } catch {
+    // No level display; capture works without it.
+  }
   let stopping: Promise<void> | null = null;
   const stop = () => {
     // Stopping flushes a last chunk; wait for it so the final words are sent.
@@ -175,6 +206,7 @@ function startOpus(
       await stopped;
       await delivered;
       for (const track of stream.getTracks()) track.stop();
+      await meterCtx?.close().catch(() => {});
     })();
     return stopping;
   };
@@ -185,7 +217,7 @@ function startOpus(
     if (old && old.state !== 'inactive') old.stop();
     begin();
   };
-  return { stop, restart };
+  return { stop, restart, level: () => level() };
 }
 
 /** Captures PCM (below) and encodes it into Opus packets. */
@@ -212,6 +244,7 @@ async function startOpusPackets(
     },
     // Each packet decodes on its own, so a new session needs no fresh stream header.
     restart: () => {},
+    level: pcm.level,
   };
   return capture;
 }
@@ -223,6 +256,7 @@ async function startPcm(
 ): Promise<MicCapture> {
   const ctx = new AudioContext();
   let stopped = false;
+  let level = () => 0;
   const stop = async () => {
     if (stopped) return;
     stopped = true;
@@ -250,6 +284,7 @@ async function startPcm(
     const mute = ctx.createGain();
     mute.gain.value = 0;
     source.connect(node).connect(mute).connect(ctx.destination);
+    level = levelMeter(ctx, source);
     // Safari may start suspended or suspend on interruption; resume when possible.
     ctx.onstatechange = () => {
       if (!stopped && ctx.state === 'suspended') void ctx.resume().catch(() => {});
@@ -259,5 +294,5 @@ async function startPcm(
     await stop();
     throw new MicError('unsupported');
   }
-  return { stop, restart: () => {} };
+  return { stop, restart: () => {}, level: () => level() };
 }

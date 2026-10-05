@@ -157,7 +157,7 @@ export function ScriptDisplay({
   useFocusMarker(
     containerRef,
     markerRef,
-    bullet ? bullet.firstTokenId : nextTokenId,
+    bullet ? bullet.startTokenId : nextTokenId,
     bullet ? bullet.lastTokenId : nextTokenId,
   );
 
