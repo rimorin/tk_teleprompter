@@ -484,6 +484,12 @@ Lines that start with `-`, `*`, `•` or `1.` and have 10 words or fewer are **p
 around a point in your own words, so it listens for the point's keywords instead of matching word
 by word.
 
+<p align="center">
+<img src="docs/images/outline-phone.png" width="280" alt="Presenter view on a phone following an outline: earlier points are dimmed, and the current point, 'Pilot: automated importer with Acme Logistics', sits in a highlighted band on the reading line." />
+<br />
+<sub>Practice mode following an outline, point by point.</sub>
+</p>
+
 - **Specific words count most:** names, numbers and terms. Words that every point shares count
   for nothing.
 - **It moves on when you have most likely reached the next point,** judged over several phrases.
