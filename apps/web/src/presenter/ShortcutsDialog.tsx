@@ -6,7 +6,7 @@ import { useEscapeKey } from '../ui/useEscapeKey';
 const SHORTCUTS: Array<[keys: string[], action: string]> = [
   [['M'], 'Start / stop microphone'],
   [['Space'], 'Pause / resume following'],
-  [['↑', '↓', 'PgUp', 'PgDn'], 'Previous / next paragraph'],
+  [['↑', '↓', 'PgUp', 'PgDn'], 'Previous / next paragraph or point'],
   [['Home'], 'Back to the start'],
   [['+', '−'], 'Larger / smaller text'],
   [['F'], 'Fullscreen'],

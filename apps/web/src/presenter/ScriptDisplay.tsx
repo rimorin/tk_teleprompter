@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, type MouseEvent, type ReactNode } from 'react';
-import type { Paragraph, ParsedScript } from '@teleprompter/shared';
+import type { OutlineBullet, Paragraph, ParsedScript } from '@teleprompter/shared';
 
 type ParagraphViewProps = {
   script: ParsedScript;
@@ -62,6 +62,8 @@ type ScriptDisplayProps = {
   nextTokenId: number | null;
   /** First and last token of the words a "Jump to …" suggestion quotes, or null. */
   jump: [from: number, to: number] | null;
+  /** Outline bullets: when the next token is in one, the whole bullet is highlighted. */
+  bullets: readonly OutlineBullet[];
   onReposition: (tokenId: number) => void;
 };
 
@@ -69,13 +71,15 @@ type ScriptDisplayProps = {
 const GLIDE_MAX_LINES = 3;
 
 /**
- * One marker behind the next word that glides from word to word, instead of the highlight
- * jumping. Positioned from the token's layout box; re-measured when the layout changes.
+ * One marker behind the next word (or the current outline bullet: tokens `from`..`to`) that
+ * glides there, instead of the highlight jumping. Positioned from the tokens' layout boxes;
+ * re-measured when the layout changes.
  */
 function useFocusMarker(
   containerRef: React.RefObject<HTMLDivElement | null>,
   markerRef: React.RefObject<HTMLDivElement | null>,
-  tokenId: number | null,
+  from: number | null,
+  to: number | null,
 ) {
   const lastTop = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -83,24 +87,31 @@ function useFocusMarker(
     const marker = markerRef.current;
     if (!container || !marker) return;
     const place = (glide: boolean) => {
-      const token =
-        tokenId === null ? null : container.querySelector<HTMLElement>(`[data-tid="${tokenId}"]`);
-      if (!token) {
+      const tokens: HTMLElement[] = [];
+      for (let id = from ?? 0; from !== null && to !== null && id <= to; id++) {
+        const el = container.querySelector<HTMLElement>(`[data-tid="${id}"]`);
+        if (el) tokens.push(el);
+      }
+      const first = tokens[0];
+      if (!first) {
         marker.hidden = true;
         lastTop.current = null;
         return;
       }
-      const lineHeight = parseFloat(getComputedStyle(token).lineHeight) || token.offsetHeight;
+      const top = Math.min(...tokens.map((t) => t.offsetTop));
+      const left = Math.min(...tokens.map((t) => t.offsetLeft));
+      const right = Math.max(...tokens.map((t) => t.offsetLeft + t.offsetWidth));
+      const bottom = Math.max(...tokens.map((t) => t.offsetTop + t.offsetHeight));
+      const lineHeight = parseFloat(getComputedStyle(first).lineHeight) || first.offsetHeight;
       const far =
-        lastTop.current === null ||
-        Math.abs(token.offsetTop - lastTop.current) > GLIDE_MAX_LINES * lineHeight;
+        lastTop.current === null || Math.abs(top - lastTop.current) > GLIDE_MAX_LINES * lineHeight;
       if (glide && !far) delete marker.dataset.instant;
       else marker.dataset.instant = '';
       marker.hidden = false;
-      marker.style.transform = `translate(${token.offsetLeft}px, ${token.offsetTop}px)`;
-      marker.style.width = `${token.offsetWidth}px`;
-      marker.style.height = `${token.offsetHeight}px`;
-      lastTop.current = token.offsetTop;
+      marker.style.transform = `translate(${left}px, ${top}px)`;
+      marker.style.width = `${right - left}px`;
+      marker.style.height = `${bottom - top}px`;
+      lastTop.current = top;
     };
     place(true);
     // Font size, column width, rotation…: follow the word without animating.
@@ -108,7 +119,7 @@ function useFocusMarker(
     const observer = new ResizeObserver(() => place(false));
     observer.observe(container);
     return () => observer.disconnect();
-  }, [containerRef, markerRef, tokenId]);
+  }, [containerRef, markerRef, from, to]);
 }
 
 function clampTo(value: number, p: Paragraph): number {
@@ -132,13 +143,23 @@ export function ScriptDisplay({
   tentativeTokenId,
   nextTokenId,
   jump,
+  bullets,
   onReposition,
 }: ScriptDisplayProps) {
   const confirmed = confirmedTokenId ?? -1;
   const tentative = Math.max(confirmed, tentativeTokenId ?? -1);
   const containerRef = useRef<HTMLDivElement>(null);
   const markerRef = useRef<HTMLDivElement>(null);
-  useFocusMarker(containerRef, markerRef, nextTokenId);
+  const bullet =
+    nextTokenId === null
+      ? undefined
+      : bullets.find((b) => nextTokenId >= b.startTokenId && nextTokenId <= b.lastTokenId);
+  useFocusMarker(
+    containerRef,
+    markerRef,
+    bullet ? bullet.firstTokenId : nextTokenId,
+    bullet ? bullet.lastTokenId : nextTokenId,
+  );
 
   function handleClick(e: MouseEvent<HTMLDivElement>) {
     if (window.getSelection()?.toString()) return;
@@ -151,7 +172,14 @@ export function ScriptDisplay({
 
   return (
     <div ref={containerRef} className="script" onClick={handleClick}>
-      <div ref={markerRef} className="focus-marker" aria-hidden hidden />
+      <div
+        ref={markerRef}
+        className="focus-marker"
+        data-bullet={bullet ? '' : undefined}
+        data-tentative={bullet && tentative > confirmed ? '' : undefined}
+        aria-hidden
+        hidden
+      />
       {script.paragraphs.map((p) => (
         <ParagraphView
           key={p.id}

@@ -40,6 +40,39 @@ describe('App (manual mode)', () => {
     expect(tokenClass('Delta')).not.toContain('spoken');
   });
 
+  it('detects an outline, then highlights and steps through it point by point', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('textbox'));
+    await user.paste('Opening words here.\n- Alpha point\n- Beta point\n\nClosing words.');
+    const stats = within(screen.getByLabelText('Script statistics'));
+    expect(stats.getByText('points')).toBeInTheDocument();
+    expect(screen.getByText(/followed point by point/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /start presenting/i }));
+    const marker = document.querySelector('.focus-marker')!;
+    expect(marker).not.toHaveAttribute('data-bullet');
+
+    // From the opening prose, Next goes to the first point; the marker covers the whole bullet.
+    await user.click(screen.getByRole('button', { name: 'Next point' }));
+    expect(marker).toHaveAttribute('data-bullet');
+    expect(tokenClass('words')).toContain('spoken');
+    expect(tokenClass('Alpha')).not.toContain('spoken');
+
+    await user.click(screen.getByRole('button', { name: 'Next point' }));
+    expect(tokenClass('Alpha')).toContain('spoken');
+    expect(tokenClass('Beta')).not.toContain('spoken');
+
+    // From the last point, Next goes on to the closing paragraph.
+    await user.click(screen.getByRole('button', { name: 'Next paragraph' }));
+    expect(tokenClass('Closing')).toContain('next');
+    expect(marker).not.toHaveAttribute('data-bullet');
+
+    await user.click(screen.getByRole('button', { name: 'Previous point' }));
+    expect(tokenClass('Beta')).not.toContain('spoken');
+    expect(marker).toHaveAttribute('data-bullet');
+  });
+
   it('guides a first visit: explains the steps, and says why presenting is not ready', async () => {
     const user = userEvent.setup();
     render(<App />);

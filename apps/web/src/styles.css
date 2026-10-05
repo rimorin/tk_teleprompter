@@ -1744,6 +1744,11 @@ input[type='range']::-moz-range-thumb {
   align-items: center;
   gap: 0.3rem;
 }
+.outline-tip {
+  margin: 0.4rem 0 0;
+  padding: 0 0.15rem;
+  text-wrap: pretty;
+}
 .credit {
   margin: 0;
   padding: 0 0.15rem;
@@ -2252,6 +2257,23 @@ input[type='range']::-moz-range-thumb {
 }
 .focus-marker[hidden] {
   display: none;
+}
+/* On an outline bullet the marker is a band behind the whole point, with an accent edge. */
+.focus-marker[data-bullet] {
+  margin: -0.18em -0.4em;
+  padding: 0.18em 0.4em;
+  border-radius: 0.4em;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0.2em 0 0 var(--accent);
+}
+.focus-marker[data-bullet]::after {
+  display: none;
+}
+/* Heard so far, not yet final: the speaker seems to have moved on to this point. */
+.focus-marker[data-bullet][data-tentative] {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: inset 0.2em 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+  outline: 0.06em dashed color-mix(in srgb, var(--accent) 45%, transparent);
 }
 /* The words a "Jump to …" suggestion quotes, so the speaker sees where it goes. */
 .tok.jump-target {

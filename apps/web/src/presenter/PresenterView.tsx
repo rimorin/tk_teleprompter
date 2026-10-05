@@ -44,7 +44,13 @@ import { useLiveSession } from '../live/useLiveSession';
 import { useAutoScroll } from '../scroll/useAutoScroll';
 import { playSimulation, type SimPlayer } from '../sim/simPlayer';
 import { scenarioOptions, SIM_SCENARIOS, type SimScenario } from '../sim/scenarios';
-import { currentParagraphId, focusTokenId, jumpSnippetStart, paragraphStepTarget } from './cursor';
+import {
+  currentSection,
+  focusTokenId,
+  jumpSnippetStart,
+  sections,
+  sectionStepTarget,
+} from './cursor';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
 import { DisplayPanel } from './DisplayPanel';
 import { VoicePanel } from './VoicePanel';
@@ -208,6 +214,8 @@ export function PresenterView({
   const scrollerRef = useRef<HTMLDivElement>(null);
   const fullscreen = useFullscreen(rootRef);
   const ctx = useMemo(() => createMatchContext(script), [script]);
+  const bullets = useMemo(() => ctx.outlines.flatMap((r) => r.outline.bullets), [ctx]);
+  const secs = useMemo(() => sections(script, bullets), [script, bullets]);
   const theme = useResolvedTheme(settings.theme);
   const [source, setSource] = useState<Source>('none');
   const [scenario, setScenario] = useState<SimScenario>('clean');
@@ -307,7 +315,7 @@ export function PresenterView({
     const { min, max } = SETTINGS_LIMITS.fontSizePx;
     update_({ fontSizePx: Math.min(max, Math.max(min, settings.fontSizePx + delta)) });
   };
-  const step = (delta: 1 | -1) => goTo(paragraphStepTarget(script, tracking, delta));
+  const step = (delta: 1 | -1) => goTo(sectionStepTarget(script, secs, tracking, delta));
 
   // Latest-value ref so the global key listener never goes stale.
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -342,7 +350,13 @@ export function PresenterView({
     return () => window.removeEventListener('keydown', listener);
   }, []);
 
-  const paragraphIndex = currentParagraphId(script, tracking) ?? 0;
+  const sectionIndex = currentSection(script, secs, tracking) ?? 0;
+  // Where Previous and Next go: a paragraph, or a point of an outline.
+  const unit = (i: number) => (secs[i]?.bullet ? 'point' : 'paragraph');
+  const prevUnit = unit(
+    (focus ?? 0) > (secs[sectionIndex]?.firstTokenId ?? 0) ? sectionIndex : sectionIndex - 1,
+  );
+  const nextUnit = unit(sectionIndex + 1);
   const progress = script.tokens.length
     ? ((tracking.confirmedTokenId ?? -1) + 1) / script.tokens.length
     : 0;
@@ -412,9 +426,9 @@ export function PresenterView({
           <SessionTimer running={timerRunning} stopped={!active} />
           <span
             className="para-count"
-            aria-label={`Paragraph ${paragraphIndex + 1} of ${script.paragraphs.length}`}
+            aria-label={`${bullets.length ? 'Section' : 'Paragraph'} ${sectionIndex + 1} of ${secs.length}`}
           >
-            {paragraphIndex + 1}/{script.paragraphs.length}
+            {sectionIndex + 1}/{secs.length}
           </span>
         </div>
         <div className="progress" aria-hidden="true">
@@ -431,6 +445,7 @@ export function PresenterView({
               confirmedTokenId={tracking.confirmedTokenId}
               tentativeTokenId={tracking.tentativeTokenId}
               nextTokenId={finished ? null : focus}
+              bullets={bullets}
               jump={jumpTarget === null ? null : [jumpSnippetStart(script, jumpTarget), jumpTarget]}
               onReposition={goTo}
             />
@@ -456,8 +471,8 @@ export function PresenterView({
           type="button"
           className="dock-btn"
           onClick={() => step(-1)}
-          aria-label="Previous paragraph"
-          title="Previous paragraph (↑)"
+          aria-label={`Previous ${prevUnit}`}
+          title={`Previous ${prevUnit} (↑)`}
         >
           <ChevronUp size={22} aria-hidden />
           <span className="dock-label" aria-hidden>
@@ -511,8 +526,8 @@ export function PresenterView({
           type="button"
           className="dock-btn"
           onClick={() => step(1)}
-          aria-label="Next paragraph"
-          title="Next paragraph (↓)"
+          aria-label={`Next ${nextUnit}`}
+          title={`Next ${nextUnit} (↓)`}
         >
           <ChevronDown size={22} aria-hidden />
           <span className="dock-label" aria-hidden>

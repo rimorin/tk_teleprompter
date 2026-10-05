@@ -26,7 +26,7 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from 'react';
-import { parseScript } from '@teleprompter/shared';
+import { DEFAULT_MATCHER_CONFIG, findOutlineBullets, parseScript } from '@teleprompter/shared';
 import { MAX_SCRIPT_CHARS } from '../config';
 import { SAMPLE_SCRIPT } from '../sampleScript';
 import type { Theme } from '../settings';
@@ -123,6 +123,10 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
   const lengthError = checkScriptLength(text);
   const canPresent = !lengthError && text.trim().length > 0;
   const words = preview.tokens.filter((t) => t.normalized).length;
+  const points = useMemo(
+    () => findOutlineBullets(preview, DEFAULT_MATCHER_CONFIG.outline.maxBulletWords).length,
+    [preview],
+  );
   const minutes = words / WORDS_PER_MINUTE;
   const usage = Math.min(1, text.length / MAX_SCRIPT_CHARS);
   const voice = VOICE_STATUS[serverStatus];
@@ -468,6 +472,12 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
               <dd>{preview.paragraphs.length}</dd>
               <dt>{preview.paragraphs.length === 1 ? 'paragraph' : 'paragraphs'}</dt>
             </div>
+            {points > 0 && (
+              <div>
+                <dd>{points}</dd>
+                <dt>{points === 1 ? 'point' : 'points'}</dt>
+              </div>
+            )}
             <div>
               <dd>{words.toLocaleString()}</dd>
               <dt>words</dt>
@@ -481,6 +491,12 @@ export function SetupView({ text, onTextChange, onPresent, theme, onThemeChange 
             <Lock size={13} aria-hidden /> Stays in this browser
           </span>
         </div>
+        {points > 0 && (
+          <p className="muted small outline-tip">
+            Short bullet points are followed point by point, so you can talk around them in your own
+            words. Points with names, numbers or specific terms are the easiest to follow.
+          </p>
+        )}
         {(usage >= SHOW_LENGTH_FROM || lengthError) && (
           <div className="card-foot">
             <div className="meter" aria-hidden>

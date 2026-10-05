@@ -1,7 +1,10 @@
-import type { ParsedScript, TrackingState } from '@teleprompter/shared';
+import type { OutlineBullet, ParsedScript, TrackingState } from '@teleprompter/shared';
 
 /** The parts of tracking state that determine what is highlighted. */
 export type Cursor = Pick<TrackingState, 'confirmedTokenId' | 'tentativeTokenId'>;
+
+/** What the presenter steps through: paragraphs, with each outline bullet its own section. */
+export type Section = { firstTokenId: number; lastTokenId: number; bullet: boolean };
 
 /** The next token to read (the one the reading zone should show), or null for an empty script. */
 export function focusTokenId(script: ParsedScript, cursor: Cursor): number | null {
@@ -10,25 +13,52 @@ export function focusTokenId(script: ParsedScript, cursor: Cursor): number | nul
   return Math.min(last + 1, script.tokens.length - 1);
 }
 
-export function currentParagraphId(script: ParsedScript, cursor: Cursor): number | null {
-  const focus = focusTokenId(script, cursor);
-  return focus === null ? null : script.tokens[focus]!.paragraphId;
+/** Paragraphs in order, split at outline bullets (which start at their marker). */
+export function sections(script: ParsedScript, bullets: readonly OutlineBullet[]): Section[] {
+  const out: Section[] = [];
+  let b = 0;
+  for (const p of script.paragraphs) {
+    let from = p.firstTokenId;
+    while (b < bullets.length && bullets[b]!.startTokenId <= p.lastTokenId) {
+      const { startTokenId, lastTokenId } = bullets[b++]!;
+      if (startTokenId > from)
+        out.push({ firstTokenId: from, lastTokenId: startTokenId - 1, bullet: false });
+      out.push({ firstTokenId: startTokenId, lastTokenId, bullet: true });
+      from = lastTokenId + 1;
+    }
+    if (from <= p.lastTokenId)
+      out.push({ firstTokenId: from, lastTokenId: p.lastTokenId, bullet: false });
+  }
+  return out;
 }
 
-/**
- * Token to reposition to when moving by paragraphs, or null if there is nowhere to go. Going
- * back from the middle of a paragraph returns to its start first.
- */
-export function paragraphStepTarget(
+/** Index of the section holding the focus, or null for an empty script. */
+export function currentSection(
   script: ParsedScript,
+  secs: readonly Section[],
   cursor: Cursor,
-  delta: 1 | -1,
 ): number | null {
   const focus = focusTokenId(script, cursor);
   if (focus === null) return null;
-  const current = script.paragraphs[script.tokens[focus]!.paragraphId]!;
-  if (delta === -1 && focus > current.firstTokenId) return current.firstTokenId;
-  return script.paragraphs[current.id + delta]?.firstTokenId ?? null;
+  const i = secs.findIndex((s) => focus <= s.lastTokenId);
+  return i === -1 ? secs.length - 1 : i;
+}
+
+/**
+ * Token to reposition to when moving by sections, or null if there is nowhere to go. Going
+ * back from the middle of a section returns to its start first.
+ */
+export function sectionStepTarget(
+  script: ParsedScript,
+  secs: readonly Section[],
+  cursor: Cursor,
+  delta: 1 | -1,
+): number | null {
+  const i = currentSection(script, secs, cursor);
+  if (i === null) return null;
+  const focus = focusTokenId(script, cursor)!;
+  if (delta === -1 && focus > secs[i]!.firstTokenId) return secs[i]!.firstTokenId;
+  return secs[i + delta]?.firstTokenId ?? null;
 }
 
 /** First token of the few words quoted for a jump suggestion (never before its paragraph). */
