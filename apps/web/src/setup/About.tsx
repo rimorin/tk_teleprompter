@@ -11,6 +11,8 @@ import {
   Hand,
   Keyboard,
   Lightbulb,
+  List,
+  ListChecks,
   Lock,
   Mic,
   MousePointerClick,
@@ -27,7 +29,11 @@ import { useEffect, useState, type ReactNode } from 'react';
 
 /** How voice following works, as a left-to-right (phones: top-to-bottom) flow. */
 const FLOW: Array<{ icon: ReactNode; title: string; text: string }> = [
-  { icon: <Mic size={20} aria-hidden />, title: 'You speak', text: 'Read your script aloud.' },
+  {
+    icon: <Mic size={20} aria-hidden />,
+    title: 'You speak',
+    text: 'Read your script aloud, or talk around your points.',
+  },
   {
     icon: <AudioLines size={20} aria-hidden />,
     title: 'Words are heard',
@@ -36,7 +42,7 @@ const FLOW: Array<{ icon: ReactNode; title: string; text: string }> = [
   {
     icon: <Compass size={20} aria-hidden />,
     title: 'Your place is found',
-    text: 'The words are matched to your script.',
+    text: 'Your words are matched to your script, or to your points.',
   },
   {
     icon: <ScrollText size={20} aria-hidden />,
@@ -51,6 +57,11 @@ const OFF_SCRIPT: Array<{ icon: ReactNode; when: string; then: string }> = [
     icon: <Sparkles size={16} aria-hidden />,
     when: 'You tell a story',
     then: 'It keeps your place and picks up when you come back.',
+  },
+  {
+    icon: <List size={16} aria-hidden />,
+    when: 'You speak from bullet points',
+    then: 'It follows you point by point, so your own words are fine.',
   },
   {
     icon: <CornerDownRight size={16} aria-hidden />,
@@ -103,7 +114,7 @@ const FACTS: Array<{ icon: ReactNode; title: string; text: string }> = [
   },
 ];
 
-/** When reading a full script makes sense (coaches otherwise suggest speaking from notes). */
+/** When a word-for-word script makes sense (coaches otherwise suggest speaking from points). */
 const FOR_WHOM = [
   'The exact words matter: a statement, a pitch, a eulogy or a toast.',
   'You are speaking in a second language.',
@@ -215,6 +226,11 @@ const TIPS: Array<{ icon: ReactNode; title: string; text: string }> = [
     icon: <MousePointerClick size={16} aria-hidden />,
     title: 'Lost your place?',
     text: 'Tap any word, or use Previous and Next, and the script goes there.',
+  },
+  {
+    icon: <ListChecks size={16} aria-hidden />,
+    title: 'Speaking from points?',
+    text: 'Start each one with - or 1. Points with names, numbers or specific terms are the easiest to follow.',
   },
   {
     icon: <Keyboard size={16} aria-hidden />,
@@ -351,7 +367,8 @@ export function About() {
       <h3 className="about-heading">Who it’s for</h3>
       <div className="card for-whom">
         <p className="muted small">
-          Most coaches suggest speaking from a few notes. A full script still makes sense when:
+          Most coaches suggest speaking from a few points, and it follows those too: talk around
+          them in your own words. A word-for-word script still makes sense when:
         </p>
         <ul>
           {FOR_WHOM.map((line) => (
@@ -408,6 +425,14 @@ export function About() {
               <span className="swatch" data-kind="line" /> Reading line
             </dt>
             <dd>Your line always settles here, between the marks at each edge.</dd>
+          </div>
+          <div>
+            <dt>
+              <span className="swatch" data-kind="point" /> Band
+            </dt>
+            <dd>
+              The point you are on, when you speak from bullet points. Dashed while it checks.
+            </dd>
           </div>
           <div>
             <dt>

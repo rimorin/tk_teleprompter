@@ -82,16 +82,17 @@ look back down.
 ### Who it's for
 
 Most coaches suggest speaking from a few notes rather than reading a full script
-([example][notes]). A word-for-word script still makes sense when:
+([example][notes]). Teleprompter follows both:
 
-- the exact words matter: a statement, a pitch, a eulogy or a toast
-- you are speaking in a second language
-- you are recording a video
-- you want a safety net for nerves
+- **A few bullet points.** Talk around them in your own words, and it follows you point by point.
+- **A word-for-word script**, when:
+  - the exact words matter: a statement, a pitch, a eulogy or a toast
+  - you are speaking in a second language
+  - you are recording a video
+  - you want a safety net for nerves
 
-If you speak from a few bullet points, you probably don't need it. If you use it, put your phone
-or tablet on a stand at eye level: reading from a phone in your hand looks unprepared
-([Vital Speeches][phone]).
+Put your phone or tablet on a stand at eye level: reading from a phone in your hand looks
+unprepared ([Vital Speeches][phone]).
 
 ### How it compares
 
@@ -104,7 +105,8 @@ or tablet on a stand at eye level: reading from a phone in your hand looks unpre
 | **This app**                                                                     | **Yes**              | **Any browser, or your server** | **Free and open source.** The speech service costs about $0.15–0.50 per hour of talking |
 
 What this one adds: your script never leaves your browser, you can host it yourself, the buttons
-work with no network at all, and it copes with talks that go off plan (see below).
+work with no network at all, it copes with talks that go off plan (see below), and it follows
+bullet-point outlines as well as full scripts.
 
 [beebe]: https://www.tandfonline.com/doi/abs/10.1080/03634527409378052
 [janicek]: https://janicekperformancegroup.com/dont-look-down-eye-contact-tips-that-transform-your-public-speaking-impact/
@@ -132,6 +134,8 @@ work with no network at all, and it copes with talks that go off plan (see below
 ### 1 · Add your script
 
 Paste it, or upload a `.txt` or `.docx` file. Your paragraphs stay exactly as you wrote them.
+Speaking from notes? Write short points that start with `-` or `1.`, and it follows you point by
+point.
 
 ### 2 · Start presenting
 
@@ -147,13 +151,14 @@ The script follows you. Tap any word to jump there yourself.
 
 ### Reading the screen
 
-| You see                    | It means                                    |
-| -------------------------- | ------------------------------------------- |
-| Faded text                 | You have said this                          |
-| Tinted, dimmer text        | What the app is hearing right now           |
-| Boxed, underlined word     | Your next word                              |
-| Glowing marks at each edge | The reading line. Your line stays here      |
-| Dashed underline           | Where a **Jump to …** button would take you |
+| You see                    | It means                                                    |
+| -------------------------- | ----------------------------------------------------------- |
+| Faded text                 | You have said this                                          |
+| Tinted, dimmer text        | What the app is hearing right now                           |
+| Boxed, underlined word     | Your next word                                              |
+| Glowing marks at each edge | The reading line. Your line stays here                      |
+| Band around a point        | The point you are on, in an outline. Dashed while it checks |
+| Dashed underline           | Where a **Jump to …** button would take you                 |
 
 ### Made for talks that don't go to plan
 
@@ -161,6 +166,7 @@ The script follows you. Tap any word to jump there yourself.
 | --------------------------------- | -------------------------------------------------------------------- |
 | **Pause** to breathe or think     | waits. Nothing moves while you are silent.                           |
 | **Go off script** to tell a story | keeps your place, then picks up when you come back to the script.    |
+| **Speak from bullet points**      | follows you point by point, so your own words are fine.              |
 | **Say it differently** or stumble | copes with misheard words, "um" and "so", and small wording changes. |
 | **Skip** a sentence or two        | catches up by itself after about 5 words (about 2 seconds).          |
 | **Skip** a whole section          | offers a **Jump to …** button, and jumps by itself when sure.        |
@@ -194,7 +200,8 @@ The script follows you. Tap any word to jump there yourself.
 - Follows your voice, with a clear status: _Listening_, _Lost place_, _Paused_.
 - A talk timer that starts when you start speaking.
 - Tap any word or paragraph to jump there.
-- Previous and next paragraph buttons.
+- Previous and next buttons that step by paragraph, or by point in an outline.
+- A ring around the mic that moves with your voice, so you can see it hears you.
 - Keyboard shortcuts, and support for presenter clickers (Page Up / Page Down).
 
 </td>
@@ -471,9 +478,29 @@ Server settings (API key, access code, limits, allowed origins) are explained in
   and usually finds you again within a few words.
 - PDF import is not supported yet. Use `.txt` or `.docx`.
 
+### How it follows an outline
+
+Lines that start with `-`, `*`, `•` or `1.` and have 10 words or fewer are **points**. You talk
+around a point in your own words, so it listens for the point's keywords instead of matching word
+by word.
+
+- **Specific words count most:** names, numbers and terms. Words that every point shares count
+  for nothing.
+- **It moves on when you have most likely reached the next point,** judged over several phrases.
+  It never jumps back by itself.
+- **Mentioning a later point in passing doesn't move it.** Skipping ahead takes agreement from at
+  least two phrases.
+- **A story, or a point said entirely in other words, keeps it where it is.** It catches up at
+  the next point it recognizes, or tap the point. It is less exact than a full script, so expect
+  it to lag behind you now and then, but not to run ahead.
+- **Prose before and after an outline is still followed word by word,** and it hands over in
+  both directions.
+- Its limits are in the `outline` section of
+  [`config.ts`](packages/shared/src/matcher/config.ts), and its scenarios are in
+  [`outline.test.ts`](packages/shared/src/matcher/outline.test.ts).
+
 ## Roadmap
 
-- Show the microphone level
 - Stage directions like `[PAUSE]` or `[SLIDE 5]` that are shown but not read
 - Presets for webcams, teleprompter glass and reading distance
 - PDF import and more languages

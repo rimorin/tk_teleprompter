@@ -1174,6 +1174,12 @@ input[type='range']::-moz-range-thumb {
 .swatch[data-kind='line'] {
   background: linear-gradient(90deg, var(--accent) 0 3px, var(--accent-soft) 3px);
 }
+.swatch[data-kind='point'] {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
+}
 
 /* Fixed-speed scroll versus following your voice (About). */
 .pace {
